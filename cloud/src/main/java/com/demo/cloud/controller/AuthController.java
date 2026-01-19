@@ -13,6 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.List;
+import java.util.UUID;
+
+import com.demo.cloud.entity.User;
 
 @RestController
 @RequestMapping("/auth")
@@ -51,22 +55,13 @@ public class AuthController {
     @PostMapping("/register")
     @Operation(summary = "Inscription", description = "Firebase si Internet, sinon PostgreSQL")
     public ResponseEntity<String> register(@RequestBody RegisterRequest req) {
-        boolean hasInternet = isInternetAvailable();
-        if (hasInternet) {
-            String firebaseUid = authService.registerUserFirebase(
-                req.email(),
-                req.password(),
-                req.fullName()
-            );
-            return ResponseEntity.ok("Utilisateur créé dans Firebase avec UID: " + firebaseUid);
-        } else {
-            authService.registerUserPostgres(
-                req.email(),
-                req.password(),
-                req.fullName()
-            );
-            return ResponseEntity.ok("Utilisateur créé dans PostgreSQL");
-        }
+        // Dans l'environnement Docker local, on force l'inscription côté PostgreSQL
+        authService.registerUserPostgres(
+            req.email(),
+            req.password(),
+            req.fullName()
+        );
+        return ResponseEntity.ok("Utilisateur créé dans PostgreSQL");
     }
 
     // =====================
@@ -99,6 +94,26 @@ public class AuthController {
             authService.unlockAccount(email);
             return ResponseEntity.ok("Compte débloqué (PostgreSQL)");
         }
+    }
+
+    // =====================
+    // UNLOCK PAR ID 
+    // =====================
+    @PostMapping("/unlock/id/{id}")
+    @Operation(summary = "Débloquer un compte par ID", description = "Débloque un compte uniquement en base PostgreSQL via son ID")
+    public ResponseEntity<String> unlockAccountById(@PathVariable UUID id) {
+        authService.unlockAccountById(id);
+        return ResponseEntity.ok("Compte débloqué (PostgreSQL)");
+    }
+
+    // =====================
+    // LISTE UTILISATEURS BLOQUÉS
+    // =====================
+    @GetMapping("/blocked")
+    @Operation(summary = "Liste des utilisateurs bloqués", description = "Retourne les utilisateurs dont le compte est verrouillé en base PostgreSQL")
+    public ResponseEntity<List<User>> getBlockedUsers() {
+        List<User> blocked = authService.getBlockedUsers();
+        return ResponseEntity.ok(blocked);
     }
 
     // =====================

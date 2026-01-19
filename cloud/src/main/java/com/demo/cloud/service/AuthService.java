@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -139,6 +140,10 @@ public class AuthService {
     // =====================
     // AUTRES MÉTHODES (register, update, unlock)
     // =====================
+    public List<User> getBlockedUsers() {
+        return userRepository.findByLockedUntilIsNotNull();
+    }
+
     public User registerUserPostgres(String email, String password, String fullName) {
         if (userRepository.findByEmail(email).isPresent()) {
             throw new RuntimeException("Email déjà utilisé");
@@ -235,6 +240,15 @@ public class AuthService {
 
     public void unlockAccount(String email) {
         User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+    }
+
+    public void unlockAccountById(UUID id) {
+        User user = userRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Utilisateur introuvable"));
 
         user.setFailedLoginAttempts(0);
