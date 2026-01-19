@@ -139,10 +139,10 @@ JOIN road_issue_status s ON s.id = r.status_id;
 INSERT INTO users (email, password_hash, full_name, role_id)
 VALUES (
     'manager@admin.com',
-    'CHANGE_ME_HASH',
+    'hash123',
+    'Gestionnaire',
     (SELECT id FROM roles WHERE code = 'MANAGER')
 );
-
 -- ============================================================
 -- FIN DU SCRIPT
 -- ============================================================
