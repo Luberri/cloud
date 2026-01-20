@@ -87,6 +87,10 @@ export default function VisitorSummaryPage() {
           </div>
         )}
       </section>
+
+      <nav className="nav-links">
+        <a href="/map">🗺️ Voir la carte des problèmes</a>
+      </nav>
     </div>
   )
 }
