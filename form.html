@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ajout de nouvel utilisateur</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .form-container {
+            background-color: #ffffff;
+            padding: 30px;
+            width: 360px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-container h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #444;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 18px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            background-color: #fafafa;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #999;
+            background-color: #fff;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #666;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h2>Ajout de nouvel utilisateur</h2>
+
+    <form>
+        <label for="name">Nom complet</label>
+        <input type="text" id="name" name="name" placeholder="Ex : Jean Dupont">
+
+        <label for="email">Adresse email</label>
+        <input type="email" id="email" name="email" placeholder="exemple@email.com">
+
+        <label for="password">Mot de passe</label>
+        <input type="password" id="password" name="password" placeholder="********">
+
+        <button type="submit">Ajouter l'utilisateur</button>
+    </form>
+</div>
+
+</body>
+</html>

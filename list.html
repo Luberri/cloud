@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des utilisateurs</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 40px;
+            color: #444;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        /* ===== FORMULAIRE ===== */
+        .form-container {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 18px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background-color: #fafafa;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #999;
+            background-color: #fff;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background-color: #666;
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background-color: #444;
+        }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #eee;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            color: #555;
+        }
+
+        tr:not(:last-child) td {
+            border-bottom: 1px solid #ddd;
+        }
+
+        .role {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .role.user {
+            background-color: #dcdcdc;
+        }
+
+        .role.manager {
+            background-color: #bfbfbf;
+            font-weight: bold;
+        }
+
+        .btn-unlock {
+            background-color: #888;
+            color: #fff;
+        }
+
+        .btn-unlock:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ===== FORMULAIRE AJOUT ===== -->
+    <div class="form-container">
+        <h2>Ajout de nouvel utilisateur</h2>
+
+        <form>
+            <label for="name">Nom complet</label>
+            <input type="text" id="name" placeholder="Ex : Jean Dupont">
+
+            <label for="email">Adresse email</label>
+            <input type="email" id="email" placeholder="exemple@email.com">
+
+            <label for="password">Mot de passe</label>
+            <input type="password" id="password" placeholder="********">
+
+            <button class="btn btn-primary" type="submit">
+                Ajouter l'utilisateur
+            </button>
+        </form>
+    </div>
+
+    <!-- ===== LISTE UTILISATEURS BLOQUÉS ===== -->
+    <div class="table-container">
+        <h2>Utilisateurs bloqués</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Date de blocage</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kanto</td>
+                    <td>kanto@example.com</td>
+                    <td><span class="role user">Utilisateur</span></td>
+                    <td>2026-01-18</td>
+                    <td>
+                        <button class="btn btn-unlock">Débloquer</button>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Ando</td>
+                    <td>ando@example.com</td>
+                    <td><span class="role manager">Manager</span></td>
+                    <td>2026-01-19</td>
+                    <td>
+                        <button class="btn btn-unlock">Débloquer</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+</body>
+</html>

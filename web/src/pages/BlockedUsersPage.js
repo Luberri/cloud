@@ -6,6 +6,7 @@ export function BlockedUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unlockingId, setUnlockingId] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     getJson("/auth/blocked")
@@ -32,13 +33,24 @@ export function BlockedUsersPage() {
     }
   };
 
+
+  const filteredUsers = users.filter((u) =>
+    u.email.toLowerCase().includes(search.toLowerCase())
+  );
+
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
-  if (!users.length) return <p>Aucun utilisateur bloqué.</p>;
 
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Utilisateurs bloqués</h1>
+      <input
+        type="text"
+        placeholder="Recherche par email..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: "1rem", padding: "0.5rem", width: "250px" }}
+      />
       <table border="1" cellPadding="8">
         <thead>
           <tr>
@@ -50,22 +62,30 @@ export function BlockedUsersPage() {
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
-            <tr key={u.id}>
-              <td>{u.email}</td>
-              <td>{u.fullName}</td>
-              <td>{u.failedLoginAttempts ?? 0}</td>
-              <td>{u.lockedUntil}</td>
-              <td>
-                <button
-                  onClick={() => handleUnlock(u.id)}
-                  disabled={unlockingId === u.id}
-                >
-                  {unlockingId === u.id ? "Déblocage..." : "Débloquer"}
-                </button>
+          {filteredUsers.length === 0 ? (
+            <tr>
+              <td colSpan={5} style={{ textAlign: "center", fontStyle: "italic" }}>
+                Aucun utilisateur bloqué.
               </td>
             </tr>
-          ))}
+          ) : (
+            filteredUsers.map((u) => (
+              <tr key={u.id}>
+                <td>{u.email}</td>
+                <td>{u.fullName}</td>
+                <td>{u.failedLoginAttempts ?? 0}</td>
+                <td>{u.lockedUntil}</td>
+                <td>
+                  <button
+                    onClick={() => handleUnlock(u.id)}
+                    disabled={unlockingId === u.id}
+                  >
+                    {unlockingId === u.id ? "Déblocage..." : "Débloquer"}
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

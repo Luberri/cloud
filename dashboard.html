@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Manager</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 40px;
+            color: #444;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #555;
+        }
+
+        .header p {
+            margin-top: 10px;
+            color: #777;
+            font-size: 15px;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #555;
+        }
+
+        .card p {
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #666;
+            color: #fff;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #444;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- ===== HEADER ===== -->
+    <div class="header">
+        <h1>Bienvenue</h1>
+        <p>Vous êtes connecté en tant que <strong>Manager</strong></p>
+    </div>
+
+    <!-- ===== ACTIONS ===== -->
+    <div class="actions">
+
+        <div class="card">
+            <h3>Synchroniser les données</h3>
+            <p>
+                Synchroniser les signalements et utilisateurs
+                avec la base centrale.
+            </p>
+            <button class="btn">Synchroniser</button>
+        </div>
+
+        <div class="card">
+            <h3>Gestion des utilisateurs</h3>
+            <p>
+                Ajouter, bloquer ou débloquer les utilisateurs
+                de la plateforme.
+            </p>
+            <button class="btn">Gérer les utilisateurs</button>
+        </div>
+
+        <div class="card">
+            <h3>Gestion des signalements</h3>
+            <p>
+                Suivre, traiter et clôturer les signalements
+                routiers.
+            </p>
+            <button class="btn">Gérer les signalements</button>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

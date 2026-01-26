@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getJson } from "../api/client";
 
 export function IssuesPage() {
+    const [statusFilter, setStatusFilter] = useState("");
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,6 +16,7 @@ export function IssuesPage() {
   });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     getJson("/issues")
@@ -76,6 +78,13 @@ export function IssuesPage() {
     }
   };
 
+
+  const filteredIssues = issues.filter((i) => {
+    const descMatch = i.description?.toLowerCase().includes(search.toLowerCase());
+    const statusMatch = statusFilter === "" || String(i.statusId) === statusFilter || i.status?.label === statusFilter;
+    return descMatch && statusMatch;
+  });
+
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
   if (!issues.length) return <p>Aucun signalement.</p>;
@@ -83,6 +92,25 @@ export function IssuesPage() {
   return (
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       <h1>Signalements routiers</h1>
+      <div style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          placeholder="Recherche par description..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ marginRight: "1rem", padding: "0.5rem", width: "300px" }}
+        />
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{ padding: "0.5rem", minWidth: "150px" }}
+        >
+          <option value="">Tous statuts</option>
+          <option value="1">Nouveau</option>
+          <option value="2">En cours</option>
+          <option value="3">Terminé</option>
+        </select>
+      </div>
       <table border="1" cellPadding="8">
         <thead>
           <tr>
@@ -96,7 +124,7 @@ export function IssuesPage() {
           </tr>
         </thead>
         <tbody>
-          {issues.map((i) => (
+          {filteredIssues.map((i) => (
             <tr key={i.id}>
               <td>{i.title}</td>
               <td>{i.description}</td>
@@ -169,14 +197,18 @@ export function IssuesPage() {
             </div>
             <div style={{ marginBottom: "0.5rem" }}>
               <label>
-                Statut (id) :
-                <input
-                  type="number"
+                Statut :
+                <select
                   name="statusId"
                   value={form.statusId}
                   onChange={handleChange}
-                  style={{ marginLeft: "0.5rem", width: "100px" }}
-                />
+                  style={{ marginLeft: "0.5rem", width: "150px" }}
+                >
+                  <option value="">Sélectionner...</option>
+                  <option value="1">Nouveau</option>
+                  <option value="2">En cours</option>
+                  <option value="3">Terminé</option>
+                </select>
               </label>
             </div>
             <button type="submit" disabled={saving}>
