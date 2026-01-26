@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/client";
+import "./IssuesPage.css";
 
 export function IssuesPage() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [editingIssue, setEditingIssue] = useState(null);
+
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -13,6 +16,7 @@ export function IssuesPage() {
     budget: "",
     statusId: "",
   });
+
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -62,12 +66,14 @@ export function IssuesPage() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error(`Erreur API ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Erreur API ${res.status}`);
 
       const updated = await res.json();
-      setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+
+      setIssues((prev) =>
+        prev.map((i) => (i.id === updated.id ? updated : i))
+      );
+
       setEditingIssue(null);
     } catch (err) {
       setFormError(err.message);
@@ -81,18 +87,20 @@ export function IssuesPage() {
   if (!issues.length) return <p>Aucun signalement.</p>;
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+    <div className="issues-page">
+
       <h1>Signalements routiers</h1>
-      <table border="1" cellPadding="8">
+
+      <table className="issues-table">
         <thead>
           <tr>
             <th>Titre</th>
             <th>Description</th>
-            <th>Surface (m²)</th>
+            <th>Surface</th>
             <th>Budget</th>
             <th>Statut</th>
-            <th>Créé le</th>
-            <th>Actions</th>
+            <th>Date</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -105,7 +113,9 @@ export function IssuesPage() {
               <td>{i.status?.label || i.statusId}</td>
               <td>{i.reportedAt}</td>
               <td>
-                <button onClick={() => startEdit(i)}>Modifier</button>
+                <button className="small-btn" onClick={() => startEdit(i)}>
+                  Modifier
+                </button>
               </td>
             </tr>
           ))}
@@ -113,85 +123,77 @@ export function IssuesPage() {
       </table>
 
       {editingIssue && (
-        <div style={{ marginTop: "2rem" }}>
-          <h2>Modifier le signalement</h2>
-          {formError && <p style={{ color: "red" }}>Erreur : {formError}</p>}
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: "0.5rem" }}>
-              <label>
-                Titre :
-                <input
-                  type="text"
-                  name="title"
-                  value={form.title}
-                  onChange={handleChange}
-                  style={{ marginLeft: "0.5rem", width: "300px" }}
-                />
-              </label>
-            </div>
-            <div style={{ marginBottom: "0.5rem" }}>
-              <label>
-                Description :
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  rows={3}
-                  style={{ marginLeft: "0.5rem", width: "300px" }}
-                />
-              </label>
-            </div>
-            <div style={{ marginBottom: "0.5rem" }}>
-              <label>
-                Surface (m²) :
-                <input
-                  type="number"
-                  step="0.01"
-                  name="surfaceM2"
-                  value={form.surfaceM2}
-                  onChange={handleChange}
-                  style={{ marginLeft: "0.5rem", width: "150px" }}
-                />
-              </label>
-            </div>
-            <div style={{ marginBottom: "0.5rem" }}>
-              <label>
-                Budget :
-                <input
-                  type="number"
-                  step="0.01"
-                  name="budget"
-                  value={form.budget}
-                  onChange={handleChange}
-                  style={{ marginLeft: "0.5rem", width: "150px" }}
-                />
-              </label>
-            </div>
-            <div style={{ marginBottom: "0.5rem" }}>
-              <label>
-                Statut (id) :
-                <input
-                  type="number"
-                  name="statusId"
-                  value={form.statusId}
-                  onChange={handleChange}
-                  style={{ marginLeft: "0.5rem", width: "100px" }}
-                />
-              </label>
-            </div>
-            <button type="submit" disabled={saving}>
-              {saving ? "Enregistrement..." : "Enregistrer"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditingIssue(null)}
-              style={{ marginLeft: "1rem" }}
-            >
-              Annuler
-            </button>
-          </form>
+        <div className="form-wrapper">
+
+          <div className="form-container">
+            <h2>Modifier le signalement</h2>
+
+            {formError && <p className="error">Erreur : {formError}</p>}
+
+            <form onSubmit={handleSubmit}>
+              <label>Titre</label>
+              <input
+                type="text"
+                name="title"
+                value={form.title}
+                onChange={handleChange}
+              />
+
+              <label>Description</label>
+              <input
+                type="text"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+              />
+
+              <label>Surface (m²)</label>
+              <input
+                type="number"
+                step="0.01"
+                name="surfaceM2"
+                value={form.surfaceM2}
+                onChange={handleChange}
+              />
+
+              <label>Budget</label>
+              <input
+                type="number"
+                step="0.01"
+                name="budget"
+                value={form.budget}
+                onChange={handleChange}
+              />
+
+              <label>Statut</label>
+              <select
+                name="statusId"
+                value={form.statusId}
+                onChange={handleChange}
+              >
+                <option value="">-- Choisir --</option>
+                <option value="1">Nouveau</option>
+                <option value="2">En cours</option>
+                <option value="3">Terminé</option>
+              </select>
+
+              <button type="submit" disabled={saving}>
+                {saving ? "Enregistrement..." : "Enregistrer les modifications"}
+              </button>
+
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => setEditingIssue(null)}
+              >
+                Annuler
+              </button>
+            </form>
+          </div>
+
         </div>
       )}
+
     </div>
   );
 }
