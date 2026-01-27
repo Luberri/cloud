@@ -1,22 +1,41 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { postJson } from "../api/client";
 import "./LoginPage.css";
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: "",
     email: "",
     password: "",
   });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login data :", form);
-    alert("Formulaire prêt — branche ton API ici 🔐");
+    setError("");
+    setLoading(true);
+
+    try {
+      const token = await postJson("/auth/login", {
+        email: form.email,
+        password: form.password,
+      });
+      
+      localStorage.setItem("authToken", token);
+      navigate("/home");
+    } catch (err) {
+      setError(err.message || "Erreur de connexion");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,8 +43,9 @@ export function LoginPage() {
       <div className="login-container">
         <h2>Connexion</h2>
 
-        <form onSubmit={handleSubmit}>
+        {error && <div className="error-message">{error}</div>}
 
+        <form onSubmit={handleSubmit}>
           <label>Email</label>
           <input
             type="email"
@@ -33,6 +53,8 @@ export function LoginPage() {
             placeholder="exemple@email.com"
             value={form.email}
             onChange={handleChange}
+            required
+            disabled={loading}
           />
 
           <label>Mot de passe</label>
@@ -42,9 +64,13 @@ export function LoginPage() {
             placeholder="********"
             value={form.password}
             onChange={handleChange}
+            required
+            disabled={loading}
           />
 
-          <button type="submit">Se connecter</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Connexion..." : "Se connecter"}
+          </button>
         </form>
 
         <div className="note">Accès sécurisé</div>

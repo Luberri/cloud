@@ -89,12 +89,14 @@ export default function MapPage() {
   return (
     <div className="map-page">
       <header className="map-header">
-        <h1>�️ Carte des Problèmes Routiers</h1>
-        <span className="subtitle">Antananarivo • {issues.length} signalement(s)</span>
-        <div className="legend">
-          <span className="legend-item"><span className="dot red"></span> Nouveau</span>
-          <span className="legend-item"><span className="dot orange"></span> En cours</span>
-          <span className="legend-item"><span className="dot green"></span> Terminé</span>
+        <div className="header-content">
+          <h1>🗺️ Carte des Problèmes Routiers</h1>
+          <span className="subtitle">Antananarivo - {issues.length} signalement(s)</span>
+          <div className="legend">
+            <span className="legend-item"><span className="dot red"></span> Nouveau</span>
+            <span className="legend-item"><span className="dot orange"></span> En cours</span>
+            <span className="legend-item"><span className="dot green"></span> Terminé</span>
+          </div>
         </div>
       </header>
 

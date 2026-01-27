@@ -50,10 +50,7 @@ export default function VisitorSummaryPage() {
       </header>
 
       <section className="card">
-        <div className="row">
-          <span className="label">API</span>
-          <span className="value monospace">{apiBaseUrl}/public/summary</span>
-        </div>
+        
 
         {loading && <div className="state">Chargement…</div>}
         {error && (
