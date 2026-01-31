@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; 
 import "./LoginPage.css";
 
 export function LoginPage() {
@@ -12,11 +13,25 @@ export function LoginPage() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-
-  const handleSubmit = (e) => {
+  
+  const navigate = useNavigate();
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Login data :", form);
-    alert("Formulaire prêt — branche ton API ici 🔐");
+    try {
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      if (!res.ok) throw new Error("Identifiants invalides");
+      const token = await res.text();
+      navigate("/accueil");
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   return (

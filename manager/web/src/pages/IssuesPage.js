@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { getJson } from "../api/client";
+import { useNavigate } from "react-router-dom"; // Ajoute ceci
+
 import "./IssuesPage.css";
 
 export function IssuesPage() {
+    
+  const navigate = useNavigate(); // Ajoute ceci
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -88,6 +92,13 @@ export function IssuesPage() {
 
   return (
     <div className="issues-page">
+      <button
+        className="btn"
+        style={{ marginBottom: "1rem" }}
+        onClick={() => navigate("/accueil")}
+      >
+        Retour à l'accueil
+      </button>
 
       <h1>Signalements routiers</h1>
 

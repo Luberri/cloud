@@ -28,4 +28,10 @@ public class UserController {
     public List<User> getBlockedUsers() {
         return userRepository.findByLockedUntilIsNotNull();
     }
+
+    @GetMapping
+    @Operation(summary = "Lister tous les utilisateurs")
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
 }

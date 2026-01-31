@@ -17,16 +17,27 @@ export function HomePage() {
       <div className="actions">
 
         <div className="card">
-          <h3>Synchroniser les données</h3>
+          <h3>Ajouter un utilisateur</h3>
           <p>
-            Synchroniser les signalements et utilisateurs
-            avec la base centrale.
+            Créer un nouvel utilisateur sur la plateforme.
           </p>
-          <button className="btn">Synchroniser</button>
+          <Link to="/add-user">
+            <button className="btn">Ajouter un utilisateur</button>
+          </Link>
         </div>
 
         <div className="card">
-          <h3>Gestion des utilisateurs</h3>
+          <h3>Liste de tous les utilisateurs</h3>
+          <p>
+            Voir tous les utilisateurs de la plateforme.
+          </p>
+          <Link to="/all-users">
+            <button className="btn">Voir les utilisateurs</button>
+          </Link>
+        </div>
+
+        <div className="card">
+          <h3>Gestion des utilisateurs bloqués</h3>
           <p>
             Ajouter, bloquer ou débloquer les utilisateurs
             de la plateforme.
@@ -34,6 +45,15 @@ export function HomePage() {
           <Link to="/blocked-users">
             <button className="btn">Gérer les utilisateurs</button>
           </Link>
+        </div>
+        
+        <div className="card">
+          <h3>Synchroniser les données</h3>
+          <p>
+            Synchroniser les signalements et utilisateurs
+            avec la base centrale.
+          </p>
+          <button className="btn">Synchroniser</button>
         </div>
 
         <div className="card">
