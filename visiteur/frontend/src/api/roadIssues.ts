@@ -12,7 +12,7 @@ export interface RoadIssuePoint {
   companyName: string | null
 }
 
-const API_BASE = 'http://localhost:8080'
+const API_BASE = 'http://localhost:8082'
 
 export async function fetchRoadIssues(): Promise<RoadIssuePoint[]> {
   const response = await fetch(`${API_BASE}/public/road-issues`)

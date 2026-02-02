@@ -75,7 +75,7 @@ body {
 .header h1 {
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary);
+  /* color: var(--text-primary); */
   margin-bottom: 8px;
   letter-spacing: -0.5px;
 }

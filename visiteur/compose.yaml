@@ -2,18 +2,25 @@ version: "3.9"
 
 services:
 
-  # Container PostGIS pour les données de carte OSM (utilisé pour générer les tuiles)
-  postgis:
+  # Container PostgreSQL/PostGIS pour la base de données unifiée (manager + visiteur)
+  postgres:
     image: postgis/postgis:15-3.4
-    container_name: postgis
+    container_name: postgres_db
+    restart: always
     environment:
-      POSTGRES_DB: gis_osm
-      POSTGRES_USER: gisuser
-      POSTGRES_PASSWORD: gispass
+      POSTGRES_DB: cloud_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - postgis_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Serveur de tuiles raster pour Leaflet
   tileserver:
@@ -24,13 +31,8 @@ services:
     ports:
       - "8081:8080"
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "80:80"
-
 volumes:
-  postgis_data:
+  postgres_data:
 
 
 # version: "3.9"

@@ -5,7 +5,7 @@ export type RoadIssuesSummaryResponse = {
   progressPercent: number
 }
 
-const DEFAULT_BASE_URL = 'http://localhost:8080'
+const DEFAULT_BASE_URL = 'http://localhost:8082'
 
 export async function fetchPublicSummary(baseUrl?: string): Promise<RoadIssuesSummaryResponse> {
   const apiBase = baseUrl ?? import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE_URL

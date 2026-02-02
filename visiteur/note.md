@@ -1,3 +1,5 @@
+En fait je veux que assembler manager et visiteur dans visiteur. Mais en ce moment manager utilise une base docker et visiteur une base locale et seulement docker pour l'affichage de la carte. Je veux que les deux utilisent la meme base docker (la base de visiteur avec la carte). Pour jdk-17, nginx, etc je veux encore utiliser localement mais pour la base postgres je veux utiliser docker (pour tout : le script database.sql, les test_data et data).
+
 Images :
 postgis, jdk-17, nginx, tileserver
 
@@ -6,7 +8,7 @@ Latitude Sud    : -18.98
 Longitude Est   : 47.60
 Latitude Nord   : -18.82
 
-Etapes pour afficher une carte OSM d’Antananarivo avec PostGIS et osm2pgsql :
+Etapes pour afficher une carte OSM d’Antananarivo avec PostGIS :
 1️⃣ Création du container PostGIS avec Docker
 docker run -d \
   --name postgis \
@@ -18,31 +20,6 @@ docker run -d \
 Crée un container Docker avec Postgres + PostGIS
 Base par défaut : gisdb
 Utilisateur : gisuser, mot de passe : gispass
-
-<!-- 2️⃣ Préparation des données OSM
-Téléchargement du fichier OSM PBF pour Madagascar
-Extraction de la zone d’Antananarivo avec osmium-tool :
-osmium extract -b 47.48,-18.98,47.60,-18.82 madagascar-latest.osm.pbf -o antananarivo.osm.pbf
-
-4️⃣ Creation de base gis_osm et extension hstore
-docker exec -it postgis psql -U gisuser -c "CREATE DATABASE gis_osm;"
-docker exec -it postgis psql -U gisuser -d gis_osm
-CREATE EXTENSION IF NOT EXISTS hstore;
-\q
-
-5️⃣ Import OSM avec osm2pgsql
-docker run --rm -it ^
-  -v E:\Lysa\S5\Rojo\cloud\cloud\tiles:/data ^
-  --network container:postgis ^
-  iboates/osm2pgsql:latest ^
-  -d gis_osm ^
-  -U gisuser ^
-  -H localhost ^
-  -P 5432 ^
-  --slim ^
-  --hstore ^
-  /data/antananarivo.osm.pbf -->
-
 
 Tables créées :
 planet_osm_point

@@ -15,7 +15,7 @@ export default function VisitorSummaryPage() {
   const [loading, setLoading] = useState(true)
 
   const apiBaseUrl = useMemo(() => {
-    return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
+    return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8082'
   }, [])
 
   useEffect(() => {
