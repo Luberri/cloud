@@ -13,7 +13,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     private String fullName;
@@ -28,6 +28,9 @@ public class User {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Column(name = "firebase_uid", length = 150)
+    private String firebaseUid;
+
     // Getters et Setters
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -37,6 +40,10 @@ public class User {
 
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    
+    // Alias pour compatibilité avec les services
+    public String getPassword() { return passwordHash; }
+    public void setPassword(String password) { this.passwordHash = password; }
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
@@ -46,6 +53,19 @@ public class User {
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    
+    // Méthode pour gérer le blocage
+    public Boolean getIsBlocked() { 
+        return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now()); 
+    }
+    
+    public void setIsBlocked(Boolean blocked) {
+        if (blocked != null && blocked) {
+            this.lockedUntil = LocalDateTime.now().plusDays(30);
+        } else {
+            this.lockedUntil = null;
+        }
+    }
 
     public Integer getFailedLoginAttempts() { return failedLoginAttempts; }
     public void setFailedLoginAttempts(Integer failedLoginAttempts) { this.failedLoginAttempts = failedLoginAttempts; }
@@ -58,4 +78,7 @@ public class User {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getFirebaseUid() { return firebaseUid; }
+    public void setFirebaseUid(String firebaseUid) { this.firebaseUid = firebaseUid; }
 }

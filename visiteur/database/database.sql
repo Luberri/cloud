@@ -146,3 +146,8 @@ VALUES (
 -- ============================================================
 -- FIN DU SCRIPT
 -- ============================================================
+
+
+
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS firebase_uid VARCHAR(150);

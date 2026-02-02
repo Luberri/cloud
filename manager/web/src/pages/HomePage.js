@@ -1,7 +1,21 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import "./HomePage.css";
 
 export function HomePage() {
+  const [syncMsg, setSyncMsg] = useState("");
+
+  const handleSync = async () => {
+    setSyncMsg("Synchronisation en cours...");
+    try {
+      const res = await fetch("/sync/all", { method: "POST" });
+      const data = await res.json();
+      setSyncMsg(`Synchronisation terminée : ${data.roadIssues} signalements et ${data.users} utilisateurs synchronisés.`);
+    } catch (e) {
+      setSyncMsg("Erreur de synchronisation");
+    }
+  };
+
   return (
     <div className="container">
 
@@ -53,7 +67,8 @@ export function HomePage() {
             Synchroniser les signalements et utilisateurs
             avec la base centrale.
           </p>
-          <button className="btn">Synchroniser</button>
+          <button className="btn" onClick={handleSync}>Synchroniser</button>
+          {syncMsg && <p>{syncMsg}</p>}
         </div>
 
         <div className="card">

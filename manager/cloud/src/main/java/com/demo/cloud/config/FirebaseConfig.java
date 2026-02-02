@@ -26,8 +26,7 @@ public class FirebaseConfig {
                 FirebaseApp.initializeApp(options);
             }
         } catch (IOException e) {
-            System.err.println("Erreur initialisation Firebase: " + e.getMessage());
-            // Ne pas bloquer l'app si Firebase échoue
+            throw new IllegalStateException("Erreur initialisation Firebase (service-account.json invalide/manquant): " + e.getMessage(), e);
         }
     }
 }
