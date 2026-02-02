@@ -1,0 +1,51 @@
+**PROMPT POUR CRÉATION DE SLIDES PHOTO-CENTRÉES "BREAK"**
+
+**Objectif :** Créer 10-12 slides minimalistes où les PHOTOS sont l'élément principal, avec très peu de texte.
+
+**Structure demandée :**
+
+**SLIDE 1 - Titre**
+- 1 photo plein écran (moment convivial marquant)
+- Titre "BREAK" superposé + sous-titre + nom de 9pers
+
+**SLIDE 2 - Introduction** 
+- Mosaïque de 2-3 photos représentant la diversité des pauses
+- Citation courte uniquement
+
+**SLIDE 4 - Food Break**
+- Collage de 3-4 photos : snacks, déjeuners, distributeurs, moments gourmands
+- Texte minimal : "Se ressourcer entre deux cours"
+
+**SLIDE 5 - Friends & Laughter**
+- Grille de 4-6 photos : groupes d'amis, discussions, fous rires
+- Texte : "Les amitiés se créent dans les pauses"
+
+**SLIDE 6 - Outdoor Moments**
+- 3-4 photos : campus extérieur, bancs, espaces verts, étudiants dehors
+- Texte : "Respirer, s'évader quelques minutes"
+
+**SLIDE 7 - Study Break**
+- Série de 2-3 photos : étirements, regards perdus, yeux fermés, détente
+- Texte : "Pause cerveau nécessaire"
+
+**SLIDE 9 - Spontaneous Moments**
+- Collage dynamique de 5-6 petites photos : moments candides, spontanés
+- Aucun texte ou juste un emoji ✨
+
+**SLIDE 10 - Conclusion**
+- 1 grande photo de groupe + 2 petites photos d'ambiance
+- Message : "Les breaks font partie de l'expérience universitaire"
+
+**CONTRAINTES IMPORTANTES :**
+- ✅ Les photos occupent 80-90% de l'espace de chaque slide
+- ✅ Maximum 1-2 lignes de texte par slide (sauf titre et conclusion)
+- ✅ Privilégier les compositions photo multiples (mosaïques, grilles, collages)
+- ✅ Texte en overlay discret ou dans un coin
+- ✅ Style cohérent pour l'agencement des photos
+- ❌ Éviter les slides avec une seule photo (sauf slide titre)
+- ❌ Pas de longs paragraphes
+
+**Style visuel :**
+- Palette chaleureuse (beiges, terracotta, verts doux)
+- Beaucoup d'espace blanc entre les photos
+- Police moderne et lisible pour le peu de texte
