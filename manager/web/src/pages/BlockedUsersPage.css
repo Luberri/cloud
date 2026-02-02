@@ -16,6 +16,33 @@ h2 {
   margin: auto;
 }
 
+/* ===== BUTTONS ===== */
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  background-color: #666;
+  color: #fff;
+  margin-right: 10px;
+}
+
+.btn:hover {
+  background-color: #444;
+}
+
+.btn-primary {
+  background-color: #666;
+  color: #fff;
+  width: 100%;
+}
+
+.btn-primary:hover {
+  background-color: #444;
+}
+
 /* ===== FORM ===== */
 
 .form-container {
@@ -46,24 +73,6 @@ input:focus {
   outline: none;
   border-color: #999;
   background-color: #fff;
-}
-
-.btn {
-  padding: 10px 16px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.btn-primary {
-  background-color: #666;
-  color: #fff;
-  width: 100%;
-}
-
-.btn-primary:hover {
-  background-color: #444;
 }
 
 /* ===== TABLE ===== */

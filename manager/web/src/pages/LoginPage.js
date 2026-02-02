@@ -1,40 +1,36 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { postJson } from "../api/client";
+import { useNavigate } from "react-router-dom"; 
 import "./LoginPage.css";
 
 export function LoginPage() {
-  const navigate = useNavigate();
   const [form, setForm] = useState({
+    name: "",
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    setError("");
   };
-
+  
+  const navigate = useNavigate();
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
-
     try {
-      const token = await postJson("/auth/login", {
-        email: form.email,
-        password: form.password,
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
       });
-      
-      localStorage.setItem("authToken", token);
-      navigate("/home");
+      if (!res.ok) throw new Error("Identifiants invalides");
+      const token = await res.text();
+      navigate("/accueil");
     } catch (err) {
-      setError(err.message || "Erreur de connexion");
-    } finally {
-      setLoading(false);
+      alert(err.message);
     }
   };
 
@@ -43,9 +39,8 @@ export function LoginPage() {
       <div className="login-container">
         <h2>Connexion</h2>
 
-        {error && <div className="error-message">{error}</div>}
-
         <form onSubmit={handleSubmit}>
+
           <label>Email</label>
           <input
             type="email"
@@ -53,8 +48,6 @@ export function LoginPage() {
             placeholder="exemple@email.com"
             value={form.email}
             onChange={handleChange}
-            required
-            disabled={loading}
           />
 
           <label>Mot de passe</label>
@@ -64,13 +57,9 @@ export function LoginPage() {
             placeholder="********"
             value={form.password}
             onChange={handleChange}
-            required
-            disabled={loading}
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
+          <button type="submit">Se connecter</button>
         </form>
 
         <div className="note">Accès sécurisé</div>
