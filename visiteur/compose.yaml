@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+
+  # Container PostgreSQL/PostGIS pour la base de données unifiée (manager + visiteur)
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_DB: cloud_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cloud_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Serveur de tuiles raster pour Leaflet
+  tileserver:
+    image: maptiler/tileserver-gl
+    container_name: tileserver
+    volumes:
+      - ./tiles:/data
+    ports:
+      - "8081:8080"
+
+volumes:
+  postgres_data:
+
+
+# version: "3.9"
+
+# services:
+#   postgres:
+#     image: postgres:15
+#     container_name: postgres_db
+#     restart: always
+#     environment:
+#       POSTGRES_DB: demo_db
+#       POSTGRES_USER: demo_user
+#       POSTGRES_PASSWORD: demo_pass
+#     ports:
+#       - "5433:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+
+#   springboot:
+#     build: .
+#     container_name: spring_app
+#     depends_on:
+#       - postgres
+#     ports:
+#       - "8080:8080"
+#     volumes:
+#       - .:/app
+#     environment:
+#       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/demo_db
+#       SPRING_DATASOURCE_USERNAME: demo_user
+#       SPRING_DATASOURCE_PASSWORD: demo_pass
+
+# volumes:
+#   postgres_data:
