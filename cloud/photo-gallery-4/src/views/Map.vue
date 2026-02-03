@@ -66,6 +66,22 @@
       <!-- Sélecteur de type de signalement -->
       <div v-if="isSignalMode && !showModal" class="marker-selector">
         <p class="selector-title">Choisissez le type de problème :</p>
+        
+        <!-- Bouton utiliser ma position -->
+        <div class="location-section">
+          <ion-button 
+            expand="block" 
+            fill="outline" 
+            size="small" 
+            @click="useMyLocation" 
+            :disabled="gettingLocation"
+          >
+            <ion-spinner v-if="gettingLocation" name="crescent" slot="start"></ion-spinner>
+            <ion-icon v-else :icon="navigateOutline" slot="start"></ion-icon>
+            {{ gettingLocation ? 'Localisation...' : 'Utiliser ma position' }}
+          </ion-button>
+        </div>
+        
         <div class="marker-options">
           <div 
             v-for="type in issueTypes" 
@@ -201,9 +217,9 @@
         <div class="status-cards">
           <div 
             v-for="stat in statsByStatus" 
-            :key="stat.status_id"
+            :key="stat.statusId"
             class="status-card"
-            :class="'status-' + stat.status_id"
+            :class="'status-' + stat.statusId"
           >
             <div class="status-count">{{ stat.count }}</div>
             <div class="status-label">{{ stat.label }}</div>
@@ -256,7 +272,7 @@
         
         <ion-item>
           <ion-label position="floating">Surface (m²)</ion-label>
-          <ion-input v-model.number="newIssue.surface_m2" type="number" placeholder="Ex: 10"></ion-input>
+          <ion-input v-model.number="newIssue.surface" type="number" placeholder="Ex: 10"></ion-input>
         </ion-item>
         
         <ion-item>
@@ -264,13 +280,49 @@
           <ion-input v-model.number="newIssue.budget" type="number" placeholder="Ex: 500000"></ion-input>
         </ion-item>
         
+        <!-- Section Photos -->
+        <div class="photos-section">
+          <div class="photos-header">
+            <ion-label>Photos</ion-label>
+            <div class="photo-actions">
+              <ion-button fill="clear" size="small" @click="takePhoto">
+                <ion-icon :icon="cameraOutline" slot="start"></ion-icon>
+                Caméra
+              </ion-button>
+              <ion-button fill="clear" size="small" @click="pickPhotos">
+                <ion-icon :icon="imagesOutline" slot="start"></ion-icon>
+                Galerie
+              </ion-button>
+            </div>
+          </div>
+          
+          <div v-if="capturedPhotos.length > 0" class="photos-preview">
+            <div 
+              v-for="(photo, index) in capturedPhotos" 
+              :key="index" 
+              class="photo-item"
+            >
+              <img :src="photo.webPath" :alt="'Photo ' + (index + 1)" />
+              <ion-button 
+                fill="clear" 
+                size="small" 
+                class="remove-photo-btn" 
+                @click="removePhoto(index)"
+              >
+                <ion-icon :icon="closeCircleOutline" color="danger"></ion-icon>
+              </ion-button>
+            </div>
+          </div>
+          <p v-else class="no-photos-text">Aucune photo ajoutée</p>
+        </div>
+        
         <ion-item>
           <ion-label>Statut</ion-label>
-          <ion-select v-model="newIssue.status_id" interface="popover">
-            <ion-select-option :value="1">Signalé</ion-select-option>
-            <ion-select-option :value="2">En cours</ion-select-option>
-            <ion-select-option :value="3">Résolu</ion-select-option>
-            <ion-select-option :value="4">Rejeté</ion-select-option>
+          <ion-select v-model="newIssue.status" interface="popover">
+            <ion-select-option value="signale">Signalé</ion-select-option>
+            <ion-select-option value="en_cours">En cours</ion-select-option>
+            <ion-select-option value="resolu">Résolu</ion-select-option>
+            <ion-select-option value="rejete">Rejeté</ion-select-option>
           </ion-select>
         </ion-item>
         
@@ -283,6 +335,59 @@
           <ion-spinner v-if="submitting" name="crescent"></ion-spinner>
           <span v-else>Créer le signalement</span>
         </ion-button>
+      </ion-content>
+    </ion-modal>
+    
+    <!-- Modal de visualisation des photos -->
+    <ion-modal :is-open="showPhotosModal" @didDismiss="closePhotosModal">
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>Photos - {{ selectedSignalForPhotos?.title }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button @click="closePhotosModal">
+              <ion-icon :icon="closeOutline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      
+      <ion-content class="ion-padding">
+        <div v-if="selectedSignalForPhotos?.photos && selectedSignalForPhotos.photos.length > 0" class="photos-gallery">
+          <div 
+            v-for="(photo, index) in selectedSignalForPhotos.photos" 
+            :key="index" 
+            class="gallery-item"
+            @click="openFullscreenPhoto(photo)"
+          >
+            <img :src="photo" :alt="'Photo ' + (index + 1)" />
+            <div class="photo-overlay">
+              <ion-icon :icon="expandOutline"></ion-icon>
+            </div>
+          </div>
+        </div>
+        <div v-else class="no-photos-container">
+          <ion-icon :icon="imagesOutline" class="no-photos-icon"></ion-icon>
+          <p>Aucune photo disponible pour ce signalement</p>
+        </div>
+      </ion-content>
+    </ion-modal>
+    
+    <!-- Modal plein écran pour une photo -->
+    <ion-modal :is-open="showFullscreenPhoto" @didDismiss="closeFullscreenPhoto">
+      <ion-header>
+        <ion-toolbar color="dark">
+          <ion-buttons slot="end">
+            <ion-button @click="closeFullscreenPhoto" color="light">
+              <ion-icon :icon="closeOutline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      
+      <ion-content class="fullscreen-photo-content">
+        <div class="fullscreen-photo-container">
+          <img :src="fullscreenPhotoUrl" alt="Photo en plein écran" />
+        </div>
       </ion-content>
     </ion-modal>
   </ion-page>
@@ -300,11 +405,14 @@ import {
   alertCircleOutline, carOutline, waterOutline, constructOutline,
   checkmarkCircleOutline, flashOutline, trashOutline, leafOutline,
   chevronDownOutline, chevronUpOutline, checkboxOutline, squareOutline,
-  statsChartOutline
+  statsChartOutline, navigateOutline, cameraOutline, imagesOutline, 
+  closeCircleOutline, expandOutline
 } from 'ionicons/icons';
+import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
+import { Geolocation } from '@capacitor/geolocation';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { collection, getDocs, addDoc, GeoPoint, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 
 // Types de signalements avec icônes et couleurs
@@ -313,36 +421,57 @@ interface IssueType {
   label: string;
   icon: string;
   color: string;
+  emoji: string;
 }
 
 const issueTypes: IssueType[] = [
-  { id: 1, label: 'Danger', icon: warningOutline, color: '#dc3545' },
-  { id: 2, label: 'Accident', icon: carOutline, color: '#9c27b0' },
-  { id: 3, label: 'Travaux', icon: constructOutline, color: '#ff9800' },
-  { id: 4, label: 'Inondation', icon: waterOutline, color: '#2196f3' },
-  { id: 5, label: 'Nid de poule', icon: alertCircleOutline, color: '#c62828' },
-  { id: 6, label: 'Résolu', icon: checkmarkCircleOutline, color: '#4caf50' },
-  { id: 7, label: 'Électricité', icon: flashOutline, color: '#ffc107' },
-  { id: 8, label: 'Déchets', icon: trashOutline, color: '#795548' },
-  { id: 9, label: 'Végétation', icon: leafOutline, color: '#8bc34a' }
+  { id: 1, label: 'Danger', icon: warningOutline, color: '#dc3545', emoji: '⚠️' },
+  { id: 2, label: 'Accident', icon: carOutline, color: '#9c27b0', emoji: '🚗' },
+  { id: 3, label: 'Travaux', icon: constructOutline, color: '#ff9800', emoji: '🚧' },
+  { id: 4, label: 'Inondation', icon: waterOutline, color: '#2196f3', emoji: '🌊' },
+  { id: 5, label: 'Nid de poule', icon: alertCircleOutline, color: '#c62828', emoji: '🕳️' },
+  { id: 6, label: 'Résolu', icon: checkmarkCircleOutline, color: '#4caf50', emoji: '✅' },
+  { id: 7, label: 'Électricité', icon: flashOutline, color: '#ffc107', emoji: '⚡' },
+  { id: 8, label: 'Déchets', icon: trashOutline, color: '#795548', emoji: '🗑️' },
+  { id: 9, label: 'Végétation', icon: leafOutline, color: '#8bc34a', emoji: '🌿' }
 ];
 
-// Interface pour les road issues
-interface RoadIssue {
+// Mapping des statuts (string <-> number)
+const statusMapping = {
+  'signale': { id: 1, label: 'Signalé' },
+  'en_cours': { id: 2, label: 'En cours' },
+  'resolu': { id: 3, label: 'Résolu' },
+  'rejete': { id: 4, label: 'Rejeté' }
+};
+
+const statusIdToString: Record<number, string> = {
+  1: 'signale',
+  2: 'en_cours',
+  3: 'resolu',
+  4: 'rejete'
+};
+
+// Interface unifiée pour les signalements (compatible avec les deux collections)
+interface Signal {
   id: string;
   title: string;
   description: string;
-  location: GeoPoint;
-  surface_m2: number;
+  latitude: number;
+  longitude: number;
+  surface: number;
   budget: number;
-  status_id: number;
-  issue_type_id: number;
-  company_id: number;
-  reported_by: string;
-  reported_at: Timestamp;
-  updated_at: Timestamp;
-  is_synced: boolean;
-  firebase_id: string;
+  status: string;
+  statusId: number;
+  typeId: number;
+  type: string;
+  color: string;
+  icon: string;
+  reportedBy: string;
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  companyId?: number;
+  photos?: string[];
+  source: 'signals' | 'road_issues';
 }
 
 // Référence pour le conteneur de la carte
@@ -352,7 +481,7 @@ let tempMarker: L.Marker | null = null;
 const loading = ref(false);
 const error = ref('');
 const successMessage = ref('');
-const roadIssues = ref<RoadIssue[]>([]);
+const signals = ref<Signal[]>([]);
 
 // État pour le mode signalement
 const isSignalMode = ref(false);
@@ -363,27 +492,71 @@ const selectedLocation = ref<{ lat: number; lng: number } | null>(null);
 const selectedIssueType = ref<IssueType | null>(null);
 const legendCollapsed = ref(false);
 
+// État pour la visualisation des photos
+const showPhotosModal = ref(false);
+const selectedSignalForPhotos = ref<Signal | null>(null);
+const showFullscreenPhoto = ref(false);
+const fullscreenPhotoUrl = ref('');
+
 // Filtres
 const selectedFilterTypes = ref<number[]>(issueTypes.map(t => t.id));
 const showMyIssuesOnly = ref(false);
 let allMarkers: L.Marker[] = [];
 
+// Photos et géolocalisation
+const capturedPhotos = ref<Photo[]>([]);
+const gettingLocation = ref(false);
+
 // Formulaire pour nouveau signalement
 const newIssue = reactive({
   title: '',
   description: '',
-  surface_m2: 0,
+  surface: 0,
   budget: 0,
-  status_id: 1
+  status: 'signale'
 });
+
+// Fonction pour parser le budget (gère string et number)
+const parseBudget = (budget: any): number => {
+  if (typeof budget === 'number') return budget;
+  if (typeof budget === 'string') return parseFloat(budget) || 0;
+  return 0;
+};
+
+// Fonction pour parser la surface (gère string et number)
+const parseSurface = (surface: any): number => {
+  if (typeof surface === 'number') return surface;
+  if (typeof surface === 'string') return parseFloat(surface) || 0;
+  return 0;
+};
+
+// Fonction pour normaliser le statut
+const normalizeStatus = (status: any, statusId?: number): { status: string; statusId: number } => {
+  if (typeof statusId === 'number' && statusId >= 1 && statusId <= 4) {
+    return { 
+      status: statusIdToString[statusId], 
+      statusId 
+    };
+  }
+  
+  if (typeof status === 'string') {
+    const normalized = status.toLowerCase().replace(/[éè]/g, 'e').replace(/\s+/g, '_');
+    const mapping = statusMapping[normalized as keyof typeof statusMapping];
+    if (mapping) {
+      return { status: normalized, statusId: mapping.id };
+    }
+  }
+  
+  return { status: 'signale', statusId: 1 };
+};
 
 // Statistiques globales
 const globalStats = computed(() => {
-  const issues = roadIssues.value;
+  const issues = signals.value;
   const totalIssues = issues.length;
-  const totalSurface = issues.reduce((sum, i) => sum + (i.surface_m2 || 0), 0);
+  const totalSurface = issues.reduce((sum, i) => sum + (i.surface || 0), 0);
   const totalBudget = issues.reduce((sum, i) => sum + (i.budget || 0), 0);
-  const resolvedIssues = issues.filter(i => i.status_id === 3).length;
+  const resolvedIssues = issues.filter(i => i.statusId === 3).length;
   const progressPercentage = totalIssues > 0 ? (resolvedIssues / totalIssues) * 100 : 0;
   
   return {
@@ -398,11 +571,11 @@ const globalStats = computed(() => {
 // Statistiques par type
 const statsByType = computed(() => {
   return issueTypes.map(type => {
-    const issuesOfType = roadIssues.value.filter(i => (i.issue_type_id || 1) === type.id);
+    const issuesOfType = signals.value.filter(i => i.typeId === type.id);
     const count = issuesOfType.length;
-    const totalSurface = issuesOfType.reduce((sum, i) => sum + (i.surface_m2 || 0), 0);
+    const totalSurface = issuesOfType.reduce((sum, i) => sum + (i.surface || 0), 0);
     const totalBudget = issuesOfType.reduce((sum, i) => sum + (i.budget || 0), 0);
-    const resolvedCount = issuesOfType.filter(i => i.status_id === 3).length;
+    const resolvedCount = issuesOfType.filter(i => i.statusId === 3).length;
     const progressPercentage = count > 0 ? (resolvedCount / count) * 100 : 0;
     
     return {
@@ -419,16 +592,16 @@ const statsByType = computed(() => {
 // Statistiques par statut
 const statsByStatus = computed(() => {
   const statuses = [
-    { status_id: 1, label: 'Signalé', color: '#ff9800' },
-    { status_id: 2, label: 'En cours', color: '#2196f3' },
-    { status_id: 3, label: 'Résolu', color: '#4caf50' },
-    { status_id: 4, label: 'Rejeté', color: '#9e9e9e' }
+    { statusId: 1, label: 'Signalé', color: '#ff9800' },
+    { statusId: 2, label: 'En cours', color: '#2196f3' },
+    { statusId: 3, label: 'Résolu', color: '#4caf50' },
+    { statusId: 4, label: 'Rejeté', color: '#9e9e9e' }
   ];
   
-  const total = roadIssues.value.length;
+  const total = signals.value.length;
   
   return statuses.map(status => {
-    const count = roadIssues.value.filter(i => i.status_id === status.status_id).length;
+    const count = signals.value.filter(i => i.statusId === status.statusId).length;
     const percentage = total > 0 ? (count / total) * 100 : 0;
     
     return {
@@ -544,9 +717,46 @@ const formatBudget = (budget: number): string => {
   }).format(budget);
 };
 
-// Créer le contenu du popup
-const createPopupContent = (issue: RoadIssue): string => {
-  const type = issueTypes.find(t => t.id === issue.issue_type_id) || issueTypes[0];
+// Ouvrir le modal des photos pour un signalement
+const openPhotosModal = (signalId: string) => {
+  const signal = signals.value.find(s => s.id === signalId);
+  if (signal) {
+    selectedSignalForPhotos.value = signal;
+    showPhotosModal.value = true;
+  }
+};
+
+// Fermer le modal des photos
+const closePhotosModal = () => {
+  showPhotosModal.value = false;
+  selectedSignalForPhotos.value = null;
+};
+
+// Ouvrir une photo en plein écran
+const openFullscreenPhoto = (photoUrl: string) => {
+  fullscreenPhotoUrl.value = photoUrl;
+  showFullscreenPhoto.value = true;
+};
+
+// Fermer la photo en plein écran
+const closeFullscreenPhoto = () => {
+  showFullscreenPhoto.value = false;
+  fullscreenPhotoUrl.value = '';
+};
+
+// Exposer la fonction globalement pour les boutons dans les popups
+const setupGlobalPhotoHandler = () => {
+  (window as any).openSignalPhotos = (signalId: string) => {
+    openPhotosModal(signalId);
+  };
+};
+
+// Créer le contenu du popup avec bouton photos
+const createPopupContent = (signal: Signal): string => {
+  const type = issueTypes.find(t => t.id === signal.typeId) || issueTypes[0];
+  const hasPhotos = signal.photos && signal.photos.length > 0;
+  const photoCount = signal.photos?.length || 0;
+  
   return `
     <div class="issue-popup">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -558,53 +768,188 @@ const createPopupContent = (issue: RoadIssue): string => {
           font-size: 11px;
           font-weight: 600;
         ">${type.label}</span>
+        ${hasPhotos ? `
+          <span style="
+            background-color: #2196f3;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          ">
+            <ion-icon name="images-outline" style="font-size: 12px;"></ion-icon>
+            ${photoCount}
+          </span>
+        ` : ''}
       </div>
-      <h3 style="margin: 0 0 8px 0; color: #333;">${issue.title}</h3>
-      <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">${issue.description}</p>
+      <h3 style="margin: 0 0 8px 0; color: #333;">${signal.title}</h3>
+      <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">${signal.description}</p>
       <hr style="border: none; border-top: 1px solid #eee; margin: 8px 0;">
       <table style="font-size: 12px; width: 100%;">
         <tr>
           <td><strong>Surface:</strong></td>
-          <td>${issue.surface_m2} m²</td>
+          <td>${signal.surface} m²</td>
         </tr>
         <tr>
           <td><strong>Budget:</strong></td>
-          <td>${formatBudget(issue.budget)}</td>
+          <td>${formatBudget(signal.budget)}</td>
         </tr>
         <tr>
           <td><strong>Statut:</strong></td>
-          <td><span style="padding: 2px 6px; background: #ffeb3b; border-radius: 4px; font-size: 11px;">${getStatusText(issue.status_id)}</span></td>
+          <td><span style="padding: 2px 6px; background: #ffeb3b; border-radius: 4px; font-size: 11px;">${getStatusText(signal.statusId)}</span></td>
         </tr>
         <tr>
           <td><strong>Signalé le:</strong></td>
-          <td>${formatDate(issue.reported_at)}</td>
+          <td>${formatDate(signal.createdAt)}</td>
         </tr>
       </table>
+      ${hasPhotos ? `
+        <button 
+          onclick="window.openSignalPhotos('${signal.id}')"
+          style="
+            margin-top: 12px;
+            width: 100%;
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: transform 0.2s, box-shadow 0.2s;
+          "
+          onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(33, 150, 243, 0.4)';"
+          onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
+        >
+          <ion-icon name="images-outline" style="font-size: 16px;"></ion-icon>
+          Voir les photos (${photoCount})
+        </button>
+      ` : `
+        <div style="
+          margin-top: 12px;
+          padding: 10px;
+          background: #f5f5f5;
+          border-radius: 8px;
+          text-align: center;
+          color: #999;
+          font-size: 12px;
+        ">
+          <ion-icon name="images-outline" style="font-size: 16px; margin-bottom: 4px; display: block;"></ion-icon>
+          Aucune photo
+        </div>
+      `}
     </div>
   `;
 };
 
-// Créer le contenu du tooltip (survol)
-const createTooltipContent = (issue: RoadIssue): string => {
-  const type = issueTypes.find(t => t.id === issue.issue_type_id) || issueTypes[0];
+// Créer le contenu du tooltip (survol) avec indicateur photos
+const createTooltipContent = (signal: Signal): string => {
+  const type = issueTypes.find(t => t.id === signal.typeId) || issueTypes[0];
+  const hasPhotos = signal.photos && signal.photos.length > 0;
+  const photoCount = signal.photos?.length || 0;
+  
   return `
-    <strong>${issue.title}</strong><br>
-    <small style="color: ${type.color};">${type.label}</small><br>
-    <small>Statut: ${getStatusText(issue.status_id)}</small>
+    <div style="min-width: 150px;">
+      <strong>${signal.title}</strong><br>
+      <small style="color: ${type.color};">${type.label}</small><br>
+      <small>Statut: ${getStatusText(signal.statusId)}</small>
+      ${hasPhotos ? `
+        <br>
+        <small style="
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 4px;
+          padding: 2px 6px;
+          background: #2196f3;
+          color: white;
+          border-radius: 4px;
+        ">
+          <ion-icon name="images-outline" style="font-size: 11px;"></ion-icon>
+          ${photoCount} photo${photoCount > 1 ? 's' : ''}
+        </small>
+      ` : ''}
+    </div>
   `;
 };
 
-// Charger les road issues depuis Firestore
-const loadRoadIssues = async () => {
+// Charger les signalements depuis Firestore (les deux collections)
+const loadSignals = async () => {
   loading.value = true;
   try {
-    const querySnapshot = await getDocs(collection(db, 'road_issues'));
-    roadIssues.value = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as RoadIssue[];
+    const allSignals: Signal[] = [];
     
-    console.log(`${roadIssues.value.length} road issues chargés`);
+    // Charger depuis la collection 'signals'
+    const signalsSnapshot = await getDocs(collection(db, 'signals'));
+    signalsSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const typeId = data.typeId || 1;
+      const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
+      const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      allSignals.push({
+        id: doc.id,
+        title: data.title || '',
+        description: data.description || '',
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        surface: parseSurface(data.surface),
+        budget: parseBudget(data.budget),
+        status,
+        statusId,
+        typeId,
+        type: data.type || type.label,
+        color: data.color || type.color,
+        icon: data.icon || type.emoji,
+        reportedBy: data.reportedBy || data.userId || '',
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        photos: data.photos || [],
+        source: 'signals'
+      });
+    });
+    
+    // Charger depuis la collection 'road_issues'
+    const roadIssuesSnapshot = await getDocs(collection(db, 'road_issues'));
+    roadIssuesSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const typeId = data.typeId || data.issueTypeId || 1;
+      const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
+      const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      allSignals.push({
+        id: doc.id,
+        title: data.title || '',
+        description: data.description || '',
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
+        surface: parseSurface(data.surfaceM2 || data.surface),
+        budget: parseBudget(data.budget),
+        status,
+        statusId,
+        typeId,
+        type: type.label,
+        color: type.color,
+        icon: type.emoji,
+        reportedBy: data.reportedBy || '',
+        createdAt: data.reportedAt || data.createdAt,
+        updatedAt: data.updatedAt,
+        companyId: data.companyId,
+        photos: data.photos || [],
+        source: 'road_issues'
+      });
+    });
+    
+    signals.value = allSignals;
+    console.log(`${signals.value.length} signalements chargés (signals: ${signalsSnapshot.size}, road_issues: ${roadIssuesSnapshot.size})`);
   } catch (e: any) {
     console.error('Erreur lors du chargement:', e);
     error.value = e.message || 'Erreur lors du chargement des signalements';
@@ -623,30 +968,26 @@ const addMarkersToMap = () => {
   
   const currentUserId = auth.currentUser?.uid;
   
-  roadIssues.value.forEach(issue => {
-    if (issue.location && issue.location.latitude && issue.location.longitude) {
-      // Appliquer les filtres
-      const typeId = issue.issue_type_id || 1;
+  signals.value.forEach(signal => {
+    if (signal.latitude && signal.longitude) {
+      const typeId = signal.typeId || 1;
       
-      // Filtre par type
       if (!selectedFilterTypes.value.includes(typeId)) return;
-      
-      // Filtre mes signalements
-      if (showMyIssuesOnly.value && issue.reported_by !== currentUserId) return;
+      if (showMyIssuesOnly.value && signal.reportedBy !== currentUserId) return;
       
       const icon = getIconForIssueType(typeId);
       
       const marker = L.marker(
-        [issue.location.latitude, issue.location.longitude],
+        [signal.latitude, signal.longitude],
         { icon }
       ).addTo(map!);
       
-      marker.bindPopup(createPopupContent(issue), {
-        maxWidth: 300,
+      marker.bindPopup(createPopupContent(signal), {
+        maxWidth: 320,
         className: 'custom-popup'
       });
       
-      marker.bindTooltip(createTooltipContent(issue), {
+      marker.bindTooltip(createTooltipContent(signal), {
         permanent: false,
         direction: 'top',
         offset: [0, -40],
@@ -662,7 +1003,6 @@ const addMarkersToMap = () => {
 const selectIssueType = (type: IssueType) => {
   selectedIssueType.value = type;
   
-  // Changer le curseur de la carte
   const mapElement = document.getElementById('map');
   if (mapElement) {
     mapElement.style.cursor = 'crosshair';
@@ -697,9 +1037,9 @@ const toggleMyIssuesOnly = () => {
 
 const getCountForType = (typeId: number): number => {
   const currentUserId = auth.currentUser?.uid;
-  return roadIssues.value.filter(issue => {
-    const matchType = (issue.issue_type_id || 1) === typeId;
-    const matchUser = !showMyIssuesOnly.value || issue.reported_by === currentUserId;
+  return signals.value.filter(signal => {
+    const matchType = signal.typeId === typeId;
+    const matchUser = !showMyIssuesOnly.value || signal.reportedBy === currentUserId;
     return matchType && matchUser;
   }).length;
 };
@@ -709,7 +1049,6 @@ const toggleSignalMode = () => {
   isSignalMode.value = !isSignalMode.value;
   
   if (!isSignalMode.value) {
-    // Retirer le marqueur temporaire si on annule
     if (tempMarker && map) {
       map.removeLayer(tempMarker);
       tempMarker = null;
@@ -717,7 +1056,6 @@ const toggleSignalMode = () => {
     selectedLocation.value = null;
     selectedIssueType.value = null;
     
-    // Réinitialiser le curseur
     const mapElement = document.getElementById('map');
     if (mapElement) {
       mapElement.style.cursor = '';
@@ -732,29 +1070,113 @@ const handleMapClick = (e: L.LeafletMouseEvent) => {
   const { lat, lng } = e.latlng;
   selectedLocation.value = { lat, lng };
   
-  // Retirer l'ancien marqueur temporaire
   if (tempMarker && map) {
     map.removeLayer(tempMarker);
   }
   
-  // Ajouter un nouveau marqueur temporaire avec l'icône sélectionnée
   const icon = getIconForIssueType(selectedIssueType.value.id);
   tempMarker = L.marker([lat, lng], { icon }).addTo(map!);
   tempMarker.bindPopup('Nouvel emplacement sélectionné').openPopup();
   
-  // Ouvrir le modal de création
   showModal.value = true;
 };
 
 // Fermer le modal
 const closeModal = () => {
   showModal.value = false;
-  // Réinitialiser le formulaire
   newIssue.title = '';
   newIssue.description = '';
-  newIssue.surface_m2 = 0;
+  newIssue.surface = 0;
   newIssue.budget = 0;
-  newIssue.status_id = 1;
+  newIssue.status = 'signale';
+  capturedPhotos.value = [];
+};
+
+// Prendre une photo avec la caméra
+const takePhoto = async () => {
+  try {
+    const photo = await Camera.getPhoto({
+      quality: 80,
+      allowEditing: false,
+      resultType: CameraResultType.Uri,
+      source: CameraSource.Camera
+    });
+    capturedPhotos.value.push(photo);
+    successMessage.value = 'Photo ajoutée !';
+  } catch (e: any) {
+    if (e.message !== 'User cancelled photos app') {
+      console.error('Erreur caméra:', e);
+      error.value = 'Erreur lors de la prise de photo';
+    }
+  }
+};
+
+// Sélectionner des photos depuis la galerie
+const pickPhotos = async () => {
+  try {
+    const photos = await Camera.pickImages({
+      quality: 80,
+      limit: 5
+    });
+    photos.photos.forEach(photo => {
+      capturedPhotos.value.push({
+        webPath: photo.webPath,
+        format: photo.format
+      } as Photo);
+    });
+    successMessage.value = `${photos.photos.length} photo(s) ajoutée(s) !`;
+  } catch (e: any) {
+    if (e.message !== 'User cancelled photos app') {
+      console.error('Erreur galerie:', e);
+      error.value = 'Erreur lors de la sélection des photos';
+    }
+  }
+};
+
+// Supprimer une photo
+const removePhoto = (index: number) => {
+  capturedPhotos.value.splice(index, 1);
+};
+
+// Utiliser ma position GPS
+const useMyLocation = async () => {
+  if (!selectedIssueType.value) {
+    error.value = 'Veuillez d\'abord sélectionner un type de signalement';
+    return;
+  }
+  
+  gettingLocation.value = true;
+  
+  try {
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000
+    });
+    
+    const { latitude, longitude } = position.coords;
+    selectedLocation.value = { lat: latitude, lng: longitude };
+    
+    if (map) {
+      map.setView([latitude, longitude], 17);
+      
+      if (tempMarker) {
+        map.removeLayer(tempMarker);
+      }
+      
+      const icon = getIconForIssueType(selectedIssueType.value.id);
+      tempMarker = L.marker([latitude, longitude], { icon }).addTo(map);
+      tempMarker.bindPopup('Ma position actuelle').openPopup();
+    }
+    
+    successMessage.value = 'Position récupérée !';
+    showModal.value = true;
+    
+  } catch (e: any) {
+    console.error('Erreur géolocalisation:', e);
+    error.value = 'Impossible de récupérer votre position. Vérifiez les permissions.';
+  } finally {
+    gettingLocation.value = false;
+  }
 };
 
 // Soumettre le signalement
@@ -769,47 +1191,53 @@ const submitIssue = async () => {
   try {
     const currentUser = auth.currentUser;
     const reportedBy = currentUser?.uid || 'anonymous';
+    const type = selectedIssueType.value;
     
-    const docRef = await addDoc(collection(db, 'road_issues'), {
+    const photosData: string[] = [];
+    for (const photo of capturedPhotos.value) {
+      if (photo.webPath) {
+        photosData.push(photo.webPath);
+      }
+    }
+    
+    const docRef = await addDoc(collection(db, 'signals'), {
       title: newIssue.title,
       description: newIssue.description,
-      location: new GeoPoint(selectedLocation.value.lat, selectedLocation.value.lng),
-      surface_m2: newIssue.surface_m2 || 0,
+      latitude: selectedLocation.value.lat,
+      longitude: selectedLocation.value.lng,
+      surface: newIssue.surface || 0,
       budget: newIssue.budget || 0,
-      status_id: newIssue.status_id,
-      issue_type_id: selectedIssueType.value.id,
-      company_id: 1,
-      reported_by: reportedBy,
-      reported_at: Timestamp.now(),
-      updated_at: Timestamp.now(),
-      is_synced: false,
-      firebase_id: ''
+      status: newIssue.status,
+      typeId: type.id,
+      type: type.label,
+      color: type.color,
+      icon: type.emoji,
+      photos: photosData,
+      reportedBy: reportedBy,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
     });
     
     console.log('Signalement créé avec ID:', docRef.id);
     successMessage.value = 'Signalement créé avec succès !';
     
-    // Fermer le modal et réinitialiser
     closeModal();
     isSignalMode.value = false;
     selectedIssueType.value = null;
     
-    // Retirer le marqueur temporaire
     if (tempMarker && map) {
       map.removeLayer(tempMarker);
       tempMarker = null;
     }
     
-    // Changer le curseur
+    capturedPhotos.value = [];
+    
     const mapElement = document.getElementById('map');
     if (mapElement) {
       mapElement.style.cursor = '';
     }
     
-    // Recharger les signalements
-    await loadRoadIssues();
-    
-    // Réajouter les marqueurs avec les filtres
+    await loadSignals();
     addMarkersToMap();
     
   } catch (e: any) {
@@ -821,7 +1249,10 @@ const submitIssue = async () => {
 };
 
 onMounted(async () => {
-  await loadRoadIssues();
+  // Setup global handler for photo button clicks
+  setupGlobalPhotoHandler();
+  
+  await loadSignals();
   
   setTimeout(() => {
     map = L.map('map', {
@@ -834,7 +1265,6 @@ onMounted(async () => {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // Ajouter l'écouteur de clic sur la carte
     map.on('click', handleMapClick);
 
     addMarkersToMap();
@@ -846,6 +1276,9 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  // Cleanup global handler
+  delete (window as any).openSignalPhotos;
+  
   if (map) {
     map.off('click', handleMapClick);
     map.remove();
@@ -872,6 +1305,8 @@ ion-content {
   --padding-top: 0;
   --padding-bottom: 0;
 }
+
+/* ...existing code... */
 
 /* Styles pour le modal de statistiques */
 .stats-summary {
@@ -1325,24 +1760,206 @@ ion-content {
 .selected-location ion-icon {
   font-size: 20px;
 }
+
+/* Section localisation */
+.location-section {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.location-section ion-button {
+  --background: #e8f5e9;
+  --color: #2e7d32;
+  --border-color: #4caf50;
+}
+
+/* Section Photos */
+.photos-section {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 12px;
+}
+
+.photos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.photos-header ion-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.photo-actions ion-button {
+  --padding-start: 8px;
+  --padding-end: 8px;
+  font-size: 12px;
+}
+
+.photos-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-photo-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  --padding-start: 4px;
+  --padding-end: 4px;
+  --padding-top: 4px;
+  --padding-bottom: 4px;
+  margin: 0;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.remove-photo-btn ion-icon {
+  font-size: 20px;
+}
+
+.no-photos-text {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  padding: 20px;
+  margin: 0;
+}
+
+/* Styles pour la galerie de photos */
+.photos-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.gallery-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.gallery-item:hover {
+  transform: scale(1.02);
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gallery-item:hover .photo-overlay {
+  opacity: 1;
+}
+
+.photo-overlay ion-icon {
+  font-size: 32px;
+  color: white;
+}
+
+.no-photos-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.no-photos-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-photos-container p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Photo plein écran */
+.fullscreen-photo-content {
+  --background: #000;
+}
+
+.fullscreen-photo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 16px;
+}
+
+.fullscreen-photo-container img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
 </style>
 
 <style>
 .custom-popup .leaflet-popup-content {
   margin: 12px;
+  min-width: 250px;
 }
 
 .custom-popup .leaflet-popup-content-wrapper {
-  border-radius: 8px;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .custom-tooltip {
   background: white;
   border: none;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  padding: 10px 14px;
   font-size: 12px;
 }
 
