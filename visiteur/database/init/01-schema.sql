@@ -24,13 +24,14 @@ INSERT INTO roles (code, description) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- =====================
--- UTILISATEURS (AUTH LOCALE)
+-- UTILISATEURS (AUTH LOCALE + FIREBASE)
 -- =====================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     full_name VARCHAR(150),
+    firebase_uid VARCHAR(150),
     role_id INT REFERENCES roles(id),
     is_active BOOLEAN DEFAULT TRUE,
     failed_login_attempts INT DEFAULT 0,

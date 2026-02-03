@@ -118,6 +118,7 @@ public class AuthService {
         user.setEmail(email);
         user.setPasswordHash(""); // Pas de mot de passe pour les users Firebase
         user.setFullName(email); // On peut enrichir avec displayName Firebase si dispo
+        user.setFirebaseUid(uid); // Sauvegarder le Firebase UID
         user.setRole(userRole);
         user.setIsActive(true);
         user.setFailedLoginAttempts(0);

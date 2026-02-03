@@ -11,8 +11,8 @@ export default function HomePage({ onNavigate, onLogout }: HomePageProps) {
   const [syncResult, setSyncResult] = useState<any>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  // Utilise VITE_API_URL si défini, sinon localhost:8080
-  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:8080";
+  // Utilise VITE_API_URL si défini, sinon localhost:8082
+  const API_BASE_URL = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:8082";
 
   const handleSync = async () => {
     setSyncLoading(true);

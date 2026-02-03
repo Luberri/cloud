@@ -86,7 +86,7 @@ export default function BlockedUsersPage({ onNavigate }: BlockedUsersPageProps) 
                 <th>Nom</th>
                 <th>Email</th>
                 <th>Rôle</th>
-                <th>Bloqué jusqu'au</th>
+                {/* <th>Bloqué jusqu'au</th> */}
                 <th>Action</th>
               </tr>
             </thead>
@@ -100,7 +100,7 @@ export default function BlockedUsersPage({ onNavigate }: BlockedUsersPageProps) 
                       {getRoleLabel(u)}
                     </span>
                   </td>
-                  <td>{u.lockedUntil}</td>
+                  {/* <td>{u.lockedUntil}</td> */}
                   <td>
                     <button
                       className="btn btn-unlock"

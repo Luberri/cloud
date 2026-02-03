@@ -71,7 +71,7 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
                 <th>Email</th>
                 <th>Rôle</th>
                 <th>Statut</th>
-                <th>Bloqué jusqu'au</th>
+                {/* <th>Bloqué jusqu'au</th> */}
               </tr>
             </thead>
             <tbody>
@@ -85,7 +85,7 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
                     </span>
                   </td>
                   <td>{u.isActive ? "Actif" : "Inactif"}</td>
-                  <td>{u.lockedUntil || "-"}</td>
+                  {/* <td>{u.lockedUntil || "-"}</td> */}
                 </tr>
               ))}
             </tbody>
