@@ -4,13 +4,13 @@ import { getFirestore } from 'firebase/firestore';
 
 // Configuration Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyCGKUQ7erBesYSmf_JJ5l61Gy0lr6jINOQ",
-  authDomain: "cloud-5c339.firebaseapp.com",
-  projectId: "cloud-5c339",
-  storageBucket: "cloud-5c339.firebasestorage.app",
-  messagingSenderId: "648861042145",
-  appId: "1:648861042145:web:c76c87ad2c8122e924fea0",
-  measurementId: "G-J4VT6W6SNR"
+  apiKey: "AIzaSyBF6FcOMpyUFMIt3m11c7ZSRBXL-u3KIA4",
+  authDomain: "testfirebase-f69fb.firebaseapp.com",
+  projectId: "testfirebase-f69fb",
+  storageBucket: "testfirebase-f69fb.firebasestorage.app",
+  messagingSenderId: "1009321928506",
+  appId: "1:1009321928506:web:3ac087a565474dbb3f1203",
+  measurementId: "G-NYQ0QCW8D3"
 };
 
 // Initialiser Firebase
