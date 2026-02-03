@@ -12,4 +12,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Utilisateurs dont le compte est actuellement bloqué
     List<User> findByLockedUntilIsNotNull();
+    List<User> findByFirebaseUidIsNull();
 }
