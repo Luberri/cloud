@@ -191,3 +191,44 @@ ON image_issues(road_issue_id, storage_path);
 
 CREATE INDEX IF NOT EXISTS idx_image_issues_issue
 ON image_issues(road_issue_id);
+
+
+-- =====================
+-- DONNÉES DE TEST : HISTORIQUE STATUTS POUR 1 ISSUE
+-- =====================
+
+INSERT INTO road_issue_status_history (
+    road_issue_id,
+    status_id,
+    changed_at,
+    changed_by
+)
+VALUES
+-- 1) Nouveau
+(
+    '6314f1a6-2c09-49b3-a298-ec96ca6d39a0',
+    (SELECT id FROM road_issue_status WHERE code = 'NEW'),
+    '2026-02-03 02:55:07',
+    (SELECT id FROM users WHERE email = 'manager@admin.com')
+);
+-- 2) En cours
+INSERT INTO road_issue_status_history (
+    road_issue_id,
+    status_id,
+    changed_at,
+    changed_by
+)
+VALUES
+(
+    '6314f1a6-2c09-49b3-a298-ec96ca6d39a0',
+    (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'),
+    '2026-02-04 10:00:00',
+    (SELECT id FROM users WHERE email = 'manager@admin.com')
+),
+-- 3) Terminé
+(
+    '6314f1a6-2c09-49b3-a298-ec96ca6d39a0',
+    (SELECT id FROM road_issue_status WHERE code = 'DONE'),
+    '2026-02-06 15:30:00',
+    (SELECT id FROM users WHERE email = 'manager@admin1.com')
+);

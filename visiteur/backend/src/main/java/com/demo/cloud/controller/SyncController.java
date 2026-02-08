@@ -28,15 +28,26 @@ public class SyncController {
         // 1) PUSH local -> Firebase (Auth)
         int usersPushed = userSyncService.pushLocalUsersToFirebaseAuth();
 
-        // 2) PUSH local -> Firebase (Firestore)
-        int roadIssuesPushed = roadIssueService.syncWithFirebase();
+        // 2) PUSH local -> Firebase (Firestore) + vérification status_id
+        int roadIssuesSynced = roadIssueService.syncWithFirebase();
 
         // 3) (optionnel) PULL Firebase -> local
         int usersPulled = userSyncService.syncUsersFromFirebase();
 
         result.put("usersPushed", usersPushed);
-        result.put("roadIssues", roadIssuesPushed);
+        result.put("roadIssuesSynced", roadIssuesSynced);
         result.put("usersPulled", usersPulled);
+        return ResponseEntity.ok(result);
+    }
+
+    // Nouveau endpoint pour sync uniquement les changements de statut
+    @PostMapping("/status-changes")
+    public ResponseEntity<Map<String, Object>> syncStatusChanges() {
+        Map<String, Object> result = new HashMap<>();
+
+        int statusChangesSynced = roadIssueService.syncStatusChangesToFirebase();
+
+        result.put("statusChangesSynced", statusChangesSynced);
         return ResponseEntity.ok(result);
     }
 }
