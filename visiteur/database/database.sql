@@ -143,6 +143,51 @@ VALUES (
     'Gestionnaire',
     (SELECT id FROM roles WHERE code = 'MANAGER')
 );
+
+INSERT INTO users (email, password_hash, full_name, role_id)
+VALUES (
+    'manager@admin1.com',
+    'hash123',
+    'Gestionnaire',
+    (SELECT id FROM roles WHERE code = 'MANAGER')
+);
 -- ============================================================
 -- FIN DU SCRIPT
 -- ============================================================
+
+
+
+
+
+CREATE TABLE IF NOT EXISTS road_issue_status_history (
+    id SERIAL PRIMARY KEY,
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+    status_id INT NOT NULL REFERENCES road_issue_status(id),
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    changed_by UUID NULL REFERENCES users(id) -- manager qui change l'état (optionnel)
+);
+
+CREATE INDEX IF NOT EXISTS idx_rish_issue ON road_issue_status_history(road_issue_id);
+CREATE INDEX IF NOT EXISTS idx_rish_status ON road_issue_status_history(status_id);
+CREATE INDEX IF NOT EXISTS idx_rish_changed_at ON road_issue_status_history(changed_at);
+
+CREATE TABLE IF NOT EXISTS image_issues (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+
+    -- Chemin dans Firebase Storage (ex: road_issues/{firebase_id}/{image}.jpg)
+    storage_path TEXT NOT NULL,
+
+    -- (optionnel) URL directe / miniature (souvent générée côté backend via URL signée)
+    download_url TEXT,
+    thumbnail_url TEXT,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- éviter doublons lors des sync
+CREATE UNIQUE INDEX IF NOT EXISTS uq_image_issues_issue_path
+ON image_issues(road_issue_id, storage_path);
+
+CREATE INDEX IF NOT EXISTS idx_image_issues_issue
+ON image_issues(road_issue_id);
