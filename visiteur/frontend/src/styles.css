@@ -59,6 +59,61 @@ body {
 }
 
 /* ========================================
+   Global Navigation Bar
+   ======================================== */
+.global-nav {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  background-color: #1a2332;
+  border-bottom: 1px solid #2d3e50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.nav-btn {
+  padding: 0.5rem 1.2rem;
+  background-color: #2d3e50;
+  color: #cbd5e1;
+  border: 1px solid #3d4e60;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: #3d4e60;
+  color: #f1f5f9;
+}
+
+.nav-btn.active {
+  background-color: #0ea5e9;
+  color: #fff;
+  border-color: #0ea5e9;
+}
+
+.nav-btn-manager {
+  background-color: #1e3a52;
+  border-color: #0ea5e9;
+  color: #38bdf8;
+}
+
+.nav-btn-manager:hover {
+  background-color: #0ea5e9;
+  color: #fff;
+}
+
+.nav-btn-manager.active {
+  background-color: #0ea5e9;
+  color: #fff;
+}
+
+/* ========================================
    Dashboard Page (VisitorSummaryPage)
    ======================================== */
 .page {

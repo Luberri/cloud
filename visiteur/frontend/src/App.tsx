@@ -40,100 +40,77 @@ export default function App() {
     setCurrentPage('visitor')
   }
 
-  // Manager pages (require authentication)
-  if (currentPage === 'login') {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />
-  }
+  const renderPage = () => {
+    // Manager pages (require authentication)
+    if (currentPage === 'login') {
+      return <LoginPage onLoginSuccess={handleLoginSuccess} />
+    }
 
-  if (currentPage === 'home' && isAuthenticated) {
-    return <HomePage onNavigate={handleNavigate} onLogout={handleLogout} />
-  }
+    if (currentPage === 'home' && isAuthenticated) {
+      return <HomePage onNavigate={handleNavigate} onLogout={handleLogout} />
+    }
 
-  if (currentPage === 'blocked-users' && isAuthenticated) {
-    return <BlockedUsersPage onNavigate={handleNavigate} />
-  }
+    if (currentPage === 'blocked-users' && isAuthenticated) {
+      return <BlockedUsersPage onNavigate={handleNavigate} />
+    }
 
-  if (currentPage === 'all-users' && isAuthenticated) {
-    return <AllUsersPage onNavigate={handleNavigate} />
-  }
+    if (currentPage === 'all-users' && isAuthenticated) {
+      return <AllUsersPage onNavigate={handleNavigate} />
+    }
 
-  if (currentPage === 'add-user' && isAuthenticated) {
-    return <AddUserPage onNavigate={handleNavigate} />
-  }
+    if (currentPage === 'add-user' && isAuthenticated) {
+      return <AddUserPage onNavigate={handleNavigate} />
+    }
 
-  if (currentPage === 'issues' && isAuthenticated) {
-    return <IssuesPage onNavigate={handleNavigate} />
-  }
+    if (currentPage === 'issues' && isAuthenticated) {
+      return <IssuesPage onNavigate={handleNavigate} />
+    }
 
-  if (currentPage === 'statistics' && isAuthenticated) {
-    return <StatisticsPage onNavigate={handleNavigate} />
-  }
+    if (currentPage === 'statistics' && isAuthenticated) {
+      return <StatisticsPage onNavigate={handleNavigate} />
+    }
 
-  // Redirect to login if trying to access protected pages without auth
-  if (['home', 'blocked-users', 'all-users', 'add-user', 'issues', 'statistics'].includes(currentPage) && !isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />
-  }
+    // Redirect to login if trying to access protected pages without auth
+    if (['home', 'blocked-users', 'all-users', 'add-user', 'issues', 'statistics'].includes(currentPage) && !isAuthenticated) {
+      return <LoginPage onLoginSuccess={handleLoginSuccess} />
+    }
 
-  // Public pages
-  if (currentPage === 'map') {
-    return <MapPage />
-  }
+    // Public pages
+    if (currentPage === 'map') {
+      return <MapPage />
+    }
 
-  if (currentPage === 'summary') {
+    if (currentPage === 'summary') {
+      return <VisitorSummaryPage />
+    }
+
+    // Default
     return <VisitorSummaryPage />
   }
 
-  // Default: Visitor summary with navigation options
   return (
     <div>
-      <nav style={{ 
-        padding: '1rem', 
-        backgroundColor: '#333', 
-        display: 'flex', 
-        gap: '1rem',
-        justifyContent: 'center'
-      }}>
-        <button 
+      <nav className="global-nav">
+        <button
+          className={`nav-btn ${currentPage === 'visitor' || currentPage === 'summary' ? 'active' : ''}`}
           onClick={() => setCurrentPage('visitor')}
-          style={{ 
-            padding: '0.5rem 1rem', 
-            backgroundColor: currentPage === 'visitor' ? '#666' : '#444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
         >
           Résumé
         </button>
-        <button 
+        <button
+          className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}
           onClick={() => setCurrentPage('map')}
-          style={{ 
-            padding: '0.5rem 1rem', 
-            backgroundColor: currentPage === 'map' ? '#666' : '#444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
         >
           Carte
         </button>
-        <button 
-          onClick={() => setCurrentPage('login')}
-          style={{ 
-            padding: '0.5rem 1rem', 
-            backgroundColor: '#4f8cff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
+        <button
+          className={`nav-btn nav-btn-manager ${['home', 'blocked-users', 'all-users', 'add-user', 'issues', 'statistics'].includes(currentPage) ? 'active' : ''}`}
+          onClick={() => setCurrentPage(isAuthenticated ? 'home' : 'login')}
         >
           Espace Manager
         </button>
       </nav>
-      <VisitorSummaryPage />
+      {renderPage()}
     </div>
   )
 }
