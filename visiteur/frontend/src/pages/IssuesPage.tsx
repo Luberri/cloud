@@ -112,7 +112,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
             <th>Description</th>
             <th>Surface</th>
             <th>Budget</th>
-            <th>Statut</th>
+            <th>Avancement</th>
             <th>Date</th>
             <th>Action</th>
           </tr>
@@ -124,7 +124,15 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
               <td>{i.description}</td>
               <td>{i.surfaceM2}</td>
               <td>{i.budget}</td>
-              <td>{i.status?.label || i.statusId}</td>
+              <td>
+                <div className="progress-bar-container">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ width: `${i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%` }}
+                  />
+                </div>
+                <span className="progress-label">{i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%</span>
+              </td>
               <td>{i.reportedAt}</td>
               <td>
                 <button className="small-btn" onClick={() => startEdit(i)}>
