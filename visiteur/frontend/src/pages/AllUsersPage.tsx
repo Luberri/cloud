@@ -19,6 +19,7 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
 
   useEffect(() => {
     getJson<User[]>("/users")
@@ -42,6 +43,10 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
 
+  const filteredUsers = statusFilter === null
+    ? users
+    : users.filter(u => u.isActive === statusFilter);
+
   return (
     <div className="container">
       <button
@@ -59,9 +64,30 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
         Bloqués
       </button>
 
+      <div className="filter-container" style={{ marginBottom: "1rem" }}>
+        <button
+          className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
+          onClick={() => setStatusFilter(null)}
+        >
+          Tous ({users.length})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === true ? 'active' : ''}`}
+          onClick={() => setStatusFilter(true)}
+        >
+          Actif ({users.filter(u => u.isActive).length})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === false ? 'active' : ''}`}
+          onClick={() => setStatusFilter(false)}
+        >
+          Inactif ({users.filter(u => !u.isActive).length})
+        </button>
+      </div>
+
       <div className="table-container">
         <h2>Tous les utilisateurs</h2>
-        {!users.length ? (
+        {!filteredUsers.length ? (
           <p>Aucun utilisateur.</p>
         ) : (
           <table>
@@ -75,7 +101,7 @@ export default function AllUsersPage({ onNavigate }: AllUsersPageProps) {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.id}>
                   <td>{u.fullName}</td>
                   <td>{u.email}</td>
