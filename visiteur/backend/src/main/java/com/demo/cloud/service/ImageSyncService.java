@@ -52,77 +52,83 @@ public class ImageSyncService {
             for (QueryDocumentSnapshot doc : documents) {
                 String firebaseId = doc.getId();
                 
-                // Trouver le road_issue correspondant dans PostgreSQL
                 Optional<RoadIssue> optionalIssue = roadIssueRepository.findByFirebaseId(firebaseId);
                 if (!optionalIssue.isPresent()) {
+                    System.out.println("⚠️ Issue non trouvée: " + firebaseId);
                     continue;
                 }
                 
                 RoadIssue localIssue = optionalIssue.get();
 
-                // Récupérer le tableau 'photos' depuis Firestore
-                List<String> photos = (List<String>) doc.get("photos");
-                if (photos != null && !photos.isEmpty()) {
-                    
-                    // Créer un sous-dossier pour ce signalement
+                // Récupérer les photos en base64
+                List<String> photosBase64 = (List<String>) doc.get("photosBase64");
+                
+                if (photosBase64 != null && !photosBase64.isEmpty()) {
                     Path issuePhotosDir = Paths.get(PHOTOS_BASE_PATH, localIssue.getId().toString());
                     Files.createDirectories(issuePhotosDir);
                     
-                    for (int i = 0; i < photos.size(); i++) {
-                        String firebaseUrl = photos.get(i);
+                    for (int i = 0; i < photosBase64.size(); i++) {
+                        String base64Data = photosBase64.get(i);
                         
-                        // Ignorer les blob URLs (ce sont des URLs temporaires du mobile)
-                        if (firebaseUrl.startsWith("blob:")) {
-                            continue;
-                        }
+                        String storagePath = localIssue.getId() + "/image_" + i + ".jpg";
                         
-                        String storagePath = extractStoragePath(firebaseUrl);
-                        
-                        // Vérifier si l'image existe déjà
                         if (!issueImageRepository.existsByRoadIssueIdAndStoragePath(
                                 localIssue.getId(), storagePath)) {
                             
-                            // Télécharger l'image depuis Firebase
-                            String localFileName = downloadImageFromFirebase(
-                                firebaseUrl, 
-                                issuePhotosDir, 
-                                i
-                            );
+                            String fileName = saveBase64Image(base64Data, issuePhotosDir, i);
                             
-                            if (localFileName != null) {
+                            if (fileName != null) {
                                 IssueImage image = new IssueImage();
                                 image.setRoadIssueId(localIssue.getId());
-                                image.setStoragePath(localIssue.getId() + "/" + localFileName);
+                                image.setStoragePath(storagePath);
+                                image.setDownloadUrl("/photos/" + localIssue.getId() + "/" + fileName);
                                 
-                                // URL locale pour accéder à l'image
-                                image.setDownloadUrl("/photos/" + localIssue.getId() + "/" + localFileName);
-                                
-                                // Récupérer uploadedBy si disponible
                                 String reportedBy = doc.getString("reportedBy");
                                 if (reportedBy != null) {
                                     try {
                                         image.setUploadedBy(UUID.fromString(reportedBy));
                                     } catch (IllegalArgumentException e) {
-                                        // Ignorer si ce n'est pas un UUID valide
+                                        // Ignorer
                                     }
                                 }
                                 
                                 issueImageRepository.save(image);
                                 imagesPulled++;
+                                System.out.println("✅ Image sauvegardée: " + fileName);
                             }
                         }
                     }
                 }
             }
-        } catch (InterruptedException | ExecutionException e) {
-            System.err.println("❌ Erreur Firebase Auth: " + e.getMessage());
-            System.err.println("💡 Vérifiez votre fichier serviceAccountKey.json");
-            throw new RuntimeException("Erreur lors du PULL des images depuis Firebase: " + e.getMessage(), e);
-        } catch (IOException e) {
-            throw new RuntimeException("Erreur I/O lors du téléchargement des images", e);
+            
+            System.out.println("✅ Total images synchronisées: " + imagesPulled);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur synchronisation: " + e.getMessage());
+            throw new RuntimeException("Erreur lors du PULL des images", e);
         }
 
         return imagesPulled;
+    }
+
+    private String saveBase64Image(String base64Data, Path destinationDir, int index) {
+        try {
+            // Décoder base64
+            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            
+            String fileName = "image_" + index + ".jpg";
+            Path filePath = destinationDir.resolve(fileName);
+            
+            // Sauvegarder le fichier
+            Files.write(filePath, imageBytes);
+            
+            System.out.println("✅ Image décodée: " + filePath + " (" + (imageBytes.length / 1024) + " KB)");
+            return fileName;
+            
+        } catch (Exception e) {
+            System.err.println("❌ Erreur décodage base64: " + e.getMessage());
+            return null;
+        }
     }
 
     /**

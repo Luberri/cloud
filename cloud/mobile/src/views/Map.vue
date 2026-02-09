@@ -414,6 +414,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 // Types de signalements avec icônes et couleurs
 interface IssueType {
@@ -887,13 +889,21 @@ const loadSignals = async () => {
   try {
     const allSignals: Signal[] = [];
     
-    // Charger depuis la collection 'signals'
+    // Charger depuis 'signals'
     const signalsSnapshot = await getDocs(collection(db, 'signals'));
     signalsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const typeId = data.typeId || 1;
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      // Convertir base64 en URLs data si présent
+      let photos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
+      } else if (data.photos) {
+        photos = data.photos;
+      }
       
       allSignals.push({
         id: doc.id,
@@ -912,18 +922,26 @@ const loadSignals = async () => {
         reportedBy: data.reportedBy || data.userId || '',
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
-        photos: data.photos || [],
+        photos: photos,
         source: 'signals'
       });
     });
     
-    // Charger depuis la collection 'road_issues'
+    // Charger depuis 'road_issues'
     const roadIssuesSnapshot = await getDocs(collection(db, 'road_issues'));
     roadIssuesSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const typeId = data.typeId || data.issueTypeId || 1;
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      // Convertir base64 en URLs data si présent
+      let photos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
+      } else if (data.photos) {
+        photos = data.photos;
+      }
       
       allSignals.push({
         id: doc.id,
@@ -943,7 +961,7 @@ const loadSignals = async () => {
         createdAt: data.reportedAt || data.createdAt,
         updatedAt: data.updatedAt,
         companyId: data.companyId,
-        photos: data.photos || [],
+        photos: photos,
         source: 'road_issues'
       });
     });
@@ -1179,10 +1197,264 @@ const useMyLocation = async () => {
   }
 };
 
-// Soumettre le signalement
+// Générer un UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Fonction améliorée pour convertir une Photo en Blob
+const photoToBlob = async (photo: Photo): Promise<Blob> => {
+  if (!photo.webPath) {
+    throw new Error('Photo sans webPath');
+  }
+
+  try {
+    // Cas 1: URL blob locale (navigateur web)
+    if (photo.webPath.startsWith('blob:')) {
+      console.log('📸 Conversion blob URL:', photo.webPath);
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      console.log('✅ Blob créé:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 2: Chemin capacitor:// (mobile)
+    if (photo.webPath.startsWith('capacitor://')) {
+      console.log('📸 Lecture depuis Capacitor:', photo.webPath);
+      const base64Data = await Filesystem.readFile({
+        path: photo.webPath
+      });
+      
+      // Convertir base64 en blob
+      const base64String = typeof base64Data.data === 'string' 
+        ? base64Data.data 
+        : base64Data.data.toString();
+      
+      const mimeType = `image/${photo.format || 'jpeg'}`;
+      const base64Response = await fetch(`data:${mimeType};base64,${base64String}`);
+      const blob = await base64Response.blob();
+      console.log('✅ Blob créé depuis Capacitor:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 3: Chemin file:// (mobile)
+    if (photo.webPath.startsWith('file://')) {
+      console.log('📸 Lecture depuis file://', photo.webPath);
+      
+      // Extraire le chemin sans file://
+      const filePath = photo.webPath.replace('file://', '');
+      
+      const base64Data = await Filesystem.readFile({
+        path: filePath
+      });
+      
+      const base64String = typeof base64Data.data === 'string' 
+        ? base64Data.data 
+        : base64Data.data.toString();
+      
+      const mimeType = `image/${photo.format || 'jpeg'}`;
+      const base64Response = await fetch(`data:${mimeType};base64,${base64String}`);
+      const blob = await base64Response.blob();
+      console.log('✅ Blob créé depuis file://', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 4: HTTP/HTTPS URL
+    if (photo.webPath.startsWith('http://') || photo.webPath.startsWith('https://')) {
+      console.log('📸 Téléchargement depuis URL:', photo.webPath);
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      console.log('✅ Blob téléchargé:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Fallback: essayer de fetch directement
+    console.log('📸 Tentative fetch direct:', photo.webPath);
+    const response = await fetch(photo.webPath);
+    const blob = await response.blob();
+    console.log('✅ Blob créé (fallback):', blob.size, 'bytes', blob.type);
+    return blob;
+    
+  } catch (error) {
+    console.error('❌ Erreur conversion photo en blob:', error);
+    console.error('Photo webPath:', photo.webPath);
+    console.error('Photo format:', photo.format);
+    throw new Error(`Impossible de convertir la photo en blob: ${error}`);
+  }
+};
+
+// Fonction améliorée pour uploader une photo vers Firebase Storage
+const uploadPhotoToStorage = async (photo: Photo, issueId: string, index: number): Promise<string> => {
+  try {
+    console.log(`📤 Upload photo ${index + 1}...`);
+    const storage = getStorage();
+    const blob = await photoToBlob(photo);
+    
+    // Vérifier la taille du blob
+    if (blob.size === 0) {
+      throw new Error('Fichier vide (0 bytes)');
+    }
+    
+    if (blob.size > 10 * 1024 * 1024) { // 10 MB max
+      throw new Error(`Fichier trop volumineux: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+    }
+    
+    // Déterminer l'extension et le type MIME
+    let extension = photo.format || 'jpg';
+    let mimeType = blob.type || 'image/jpeg';
+    
+    // Normaliser l'extension
+    if (extension === 'jpeg') extension = 'jpg';
+    
+    // S'assurer que le type MIME correspond à l'extension
+    if (!mimeType.startsWith('image/')) {
+      mimeType = `image/${extension}`;
+    }
+    
+    const fileName = `image_${index}_${Date.now()}.${extension}`;
+    const storagePath = `road_issues/${issueId}/${fileName}`;
+    
+    console.log(`📁 Chemin: ${storagePath}`);
+    console.log(`📊 Taille: ${(blob.size / 1024).toFixed(2)} KB`);
+    console.log(`🎨 Type: ${mimeType}`);
+    
+    // Créer la référence Firebase Storage
+    const imageRef = storageRef(storage, storagePath);
+    
+    // Uploader l'image avec metadata
+    const metadata = {
+      contentType: mimeType,
+      customMetadata: {
+        uploadedFrom: 'mobile-app',
+        issueId: issueId,
+        originalFormat: photo.format || 'unknown'
+      }
+    };
+    
+    await uploadBytes(imageRef, blob, metadata);
+    
+    // Récupérer l'URL de téléchargement
+    const downloadUrl = await getDownloadURL(imageRef);
+    
+    console.log(`✅ Image ${index + 1} uploadée avec succès!`);
+    console.log(`🔗 URL: ${downloadUrl.substring(0, 50)}...`);
+    
+    return downloadUrl;
+    
+  } catch (error) {
+    console.error(`❌ Erreur upload photo ${index + 1}:`, error);
+    throw error;
+  }
+};
+
+// Fonction pour compresser les images
+const compressImage = async (blob: Blob, maxWidth = 400, quality = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    img.onload = () => {
+      // Calculer les nouvelles dimensions
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Dessiner l'image redimensionnée
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      // Convertir en blob compressé (JPEG pour meilleure compression)
+      canvas.toBlob(
+        (compressedBlob) => {
+          if (compressedBlob) {
+            const originalSize = (blob.size / 1024).toFixed(2);
+            const compressedSize = (compressedBlob.size / 1024).toFixed(2);
+            console.log(`📦 Compression: ${originalSize}KB → ${compressedSize}KB (${((1 - compressedBlob.size / blob.size) * 100).toFixed(1)}% réduit)`);
+            resolve(compressedBlob);
+          } else {
+            reject(new Error('Erreur de compression'));
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
+};
+
+// Fonction pour convertir un Blob en base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      // Retirer le préfixe "data:image/jpeg;base64,"
+      const base64Data = base64String.split(',')[1];
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+// Fonction pour convertir et compresser une photo en base64
+const photoToBase64 = async (photo: Photo): Promise<string> => {
+  try {
+    console.log('📸 Conversion photo en base64...');
+    
+    // Étape 1: Convertir en Blob
+    const blob = await photoToBlob(photo);
+    console.log(`📊 Taille originale: ${(blob.size / 1024).toFixed(2)} KB`);
+    
+    // Étape 2: Compresser l'image (400px max, qualité 70%)
+    const compressedBlob = await compressImage(blob, 400, 0.7);
+    
+    // Vérifier que la taille compressée ne dépasse pas ~200 KB
+    if (compressedBlob.size > 200 * 1024) {
+      console.warn('⚠️ Image encore trop volumineuse, compression supplémentaire...');
+      // Recompresser avec qualité réduite
+      const recompressedBlob = await compressImage(blob, 350, 0.6);
+      const base64 = await blobToBase64(recompressedBlob);
+      console.log(`✅ Taille finale: ${(recompressedBlob.size / 1024).toFixed(2)} KB`);
+      return base64;
+    }
+    
+    // Étape 3: Convertir en base64
+    const base64 = await blobToBase64(compressedBlob);
+    console.log(`✅ Conversion réussie: ${(compressedBlob.size / 1024).toFixed(2)} KB`);
+    
+    return base64;
+    
+  } catch (error) {
+    console.error('❌ Erreur conversion base64:', error);
+    throw new Error(`Impossible de convertir la photo: ${error}`);
+  }
+};
+
+// REMPLACER la fonction submitIssue par celle-ci
 const submitIssue = async () => {
   if (!selectedLocation.value || !newIssue.title || !newIssue.description || !selectedIssueType.value) {
     error.value = 'Veuillez remplir tous les champs obligatoires';
+    return;
+  }
+  
+  // Limiter le nombre de photos à 3 pour éviter de dépasser 1 MB
+  if (capturedPhotos.value.length > 3) {
+    error.value = 'Maximum 3 photos par signalement';
     return;
   }
   
@@ -1192,34 +1464,82 @@ const submitIssue = async () => {
     const currentUser = auth.currentUser;
     const reportedBy = currentUser?.uid || 'anonymous';
     const type = selectedIssueType.value;
+    const statusId = statusMapping[newIssue.status as keyof typeof statusMapping]?.id || 1;
+    const issueId = generateUUID();
     
-    const photosData: string[] = [];
-    for (const photo of capturedPhotos.value) {
-      if (photo.webPath) {
-        photosData.push(photo.webPath);
+    console.log(`🆕 Création du signalement ${issueId}`);
+    console.log(`📸 Nombre de photos à convertir: ${capturedPhotos.value.length}`);
+    
+    // Convertir les photos en base64
+    const photosBase64: string[] = [];
+    const failedPhotos: number[] = [];
+    
+    if (capturedPhotos.value.length > 0) {
+      successMessage.value = `Compression des photos (0/${capturedPhotos.value.length})...`;
+      
+      for (let i = 0; i < capturedPhotos.value.length; i++) {
+        const photo = capturedPhotos.value[i];
+        
+        try {
+          successMessage.value = `Compression des photos (${i + 1}/${capturedPhotos.value.length})...`;
+          const base64 = await photoToBase64(photo);
+          photosBase64.push(base64);
+          
+        } catch (conversionError: any) {
+          console.error(`❌ Échec conversion photo ${i + 1}:`, conversionError);
+          failedPhotos.push(i + 1);
+        }
+      }
+      
+      console.log(`✅ ${photosBase64.length}/${capturedPhotos.value.length} photos converties`);
+      
+      if (failedPhotos.length > 0) {
+        console.warn(`⚠️ Photos échouées: ${failedPhotos.join(', ')}`);
       }
     }
     
-    const docRef = await addDoc(collection(db, 'signals'), {
+    const now = Timestamp.now();
+    
+    // Créer le signalement avec les images en base64
+    const issueData = {
+      id: issueId,
       title: newIssue.title,
       description: newIssue.description,
       latitude: selectedLocation.value.lat,
       longitude: selectedLocation.value.lng,
-      surface: newIssue.surface || 0,
-      budget: newIssue.budget || 0,
-      status: newIssue.status,
+      surfaceM2: (newIssue.surface || 0).toFixed(2),
+      budget: (newIssue.budget || 0).toFixed(2),
+      statusId: statusId,
       typeId: type.id,
-      type: type.label,
-      color: type.color,
-      icon: type.emoji,
-      photos: photosData,
+      companyId: null,
+      photosBase64: photosBase64, // ✅ Stocker en base64 au lieu d'URLs
       reportedBy: reportedBy,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    });
+      reportedAt: now,
+      updatedAt: now
+    };
     
-    console.log('Signalement créé avec ID:', docRef.id);
-    successMessage.value = 'Signalement créé avec succès !';
+    // Vérifier la taille du document (approximatif)
+    const estimatedSize = JSON.stringify(issueData).length;
+    console.log(`📦 Taille estimée du document: ${(estimatedSize / 1024).toFixed(2)} KB`);
+    
+    if (estimatedSize > 900 * 1024) { // 900 KB pour laisser une marge
+      throw new Error('Document trop volumineux. Réduisez le nombre de photos.');
+    }
+    
+    console.log('💾 Sauvegarde dans Firestore...');
+    
+    const docRef = await addDoc(collection(db, 'road_issues'), issueData);
+    
+    console.log('✅ Signalement créé avec ID Firestore:', docRef.id);
+    
+    // Message de succès
+    let message = `Signalement créé avec ${photosBase64.length} photo(s)`;
+    if (failedPhotos.length > 0) {
+      message += ` (${failedPhotos.length} photo(s) échouée(s))`;
+    }
+    message += ' !';
+    
+    successMessage.value = message;
     
     closeModal();
     isSignalMode.value = false;
@@ -1241,7 +1561,8 @@ const submitIssue = async () => {
     addMarkersToMap();
     
   } catch (e: any) {
-    console.error('Erreur lors de la création:', e);
+    console.error('❌ Erreur lors de la création du signalement:', e);
+    console.error('Stack trace:', e.stack);
     error.value = e.message || 'Erreur lors de la création du signalement';
   } finally {
     submitting.value = false;
@@ -1249,7 +1570,6 @@ const submitIssue = async () => {
 };
 
 onMounted(async () => {
-  // Setup global handler for photo button clicks
   setupGlobalPhotoHandler();
   
   await loadSignals();
@@ -1743,6 +2063,8 @@ ion-content {
   justify-content: center;
   color: white;
   font-size: 18px;
+
+
 }
 
 .selected-location {
@@ -1754,6 +2076,7 @@ ion-content {
   align-items: center;
   gap: 8px;
   font-size: 14px;
+  
   color: #1976d2;
 }
 
@@ -1980,4 +2303,5 @@ ion-content {
   background: transparent;
   border: none;
 }
+
 </style>
