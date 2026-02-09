@@ -33,10 +33,22 @@ build/
 ### VS Code ###
 .vscode/
 
+### Backend ###
 /backend/target/
 /backend/.mvn/
-frontend/node_modules/
-frontend/**/node_modules/
 
+### Frontend ###
+**/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+### Firebase ###
 backend/src/main/resources/service-account.json
+**/service-account.json
+**/*-firebase-adminsdk-*.json
+
+### Photos ###
+photos/
+**/photos/
 
