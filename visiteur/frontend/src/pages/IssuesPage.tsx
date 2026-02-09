@@ -100,13 +100,20 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
 
   return (
     <div className="issues-page">
-      <button
-        className="btn"
-        style={{ marginBottom: "1rem" }}
-        onClick={() => onNavigate('home')}
-      >
-        Retour à l'accueil
-      </button>
+      <div style={{ marginBottom: "1rem" }}>
+        <button
+          className="btn"
+          onClick={() => onNavigate('home')}
+        >
+          Retour à l'accueil
+        </button>
+        <button
+          className="btn"
+          onClick={() => onNavigate('statistics')}
+        >
+          Voir les statistiques
+        </button>
+      </div>
 
       <h1>Signalements routiers</h1>
 
