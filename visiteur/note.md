@@ -1,3 +1,5 @@
+Je veux utiliser docker pour tout le projet web (le dossier visiteur) : java react etc (a part les images postgis et tileserver deja la). Et en fait je vais deployer ce projet dans un autre ordinateur, comment faire pour que ca marche direct dans d'autres ordinateurs en faisant compose up -d ?
+
 En fait je veux que assembler manager et visiteur dans visiteur. Mais en ce moment manager utilise une base docker et visiteur une base locale et seulement docker pour l'affichage de la carte. Je veux que les deux utilisent la meme base docker (la base de visiteur avec la carte). Pour jdk-17, nginx, etc je veux encore utiliser localement mais pour la base postgres je veux utiliser docker (pour tout : le script database.sql, les test_data et data).
 
 Images :

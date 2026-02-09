@@ -105,7 +105,7 @@ export default function App() {
           onClick={() => setCurrentPage('map')}
           style={{ 
             padding: '0.5rem 1rem', 
-            backgroundColor: currentPage === 'map' ? '#666' : '#444',
+            backgroundColor: '#444',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
