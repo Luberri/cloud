@@ -46,5 +46,61 @@ INSERT INTO road_issues (title, description, location, surface_m2, budget, statu
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
+-- DONNÉES INITIALES - HISTORIQUE DES STATUTS
+-- ============================================================
+
+-- Insérer un historique initial pour chaque signalement existant
+INSERT INTO road_issue_status_history (road_issue_id, status_id, changed_at, changed_by)
+SELECT ri.id, ri.status_id, ri.reported_at, ri.reported_by
+FROM road_issues ri
+WHERE NOT EXISTS (
+    SELECT 1 FROM road_issue_status_history h WHERE h.road_issue_id = ri.id
+);
+
+-- Ajouter des transitions pour les signalements EN COURS (NEW -> IN_PROGRESS)
+INSERT INTO road_issue_status_history (road_issue_id, status_id, changed_at, changed_by)
+SELECT ri.id,
+       (SELECT id FROM road_issue_status WHERE code = 'NEW'),
+       ri.reported_at - INTERVAL '5 days',
+       ri.reported_by
+FROM road_issues ri
+JOIN road_issue_status s ON s.id = ri.status_id
+WHERE s.code = 'IN_PROGRESS'
+AND NOT EXISTS (
+    SELECT 1 FROM road_issue_status_history h
+    WHERE h.road_issue_id = ri.id
+    AND h.status_id = (SELECT id FROM road_issue_status WHERE code = 'NEW')
+);
+
+-- Ajouter des transitions pour les signalements TERMINÉS (NEW -> IN_PROGRESS -> DONE)
+INSERT INTO road_issue_status_history (road_issue_id, status_id, changed_at, changed_by)
+SELECT ri.id,
+       (SELECT id FROM road_issue_status WHERE code = 'NEW'),
+       ri.reported_at - INTERVAL '10 days',
+       ri.reported_by
+FROM road_issues ri
+JOIN road_issue_status s ON s.id = ri.status_id
+WHERE s.code = 'DONE'
+AND NOT EXISTS (
+    SELECT 1 FROM road_issue_status_history h
+    WHERE h.road_issue_id = ri.id
+    AND h.status_id = (SELECT id FROM road_issue_status WHERE code = 'NEW')
+);
+
+INSERT INTO road_issue_status_history (road_issue_id, status_id, changed_at, changed_by)
+SELECT ri.id,
+       (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'),
+       ri.reported_at - INTERVAL '5 days',
+       ri.reported_by
+FROM road_issues ri
+JOIN road_issue_status s ON s.id = ri.status_id
+WHERE s.code = 'DONE'
+AND NOT EXISTS (
+    SELECT 1 FROM road_issue_status_history h
+    WHERE h.road_issue_id = ri.id
+    AND h.status_id = (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS')
+);
+
+-- ============================================================
 -- FIN DES DONNÉES INITIALES
 -- ============================================================

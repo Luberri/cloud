@@ -136,6 +136,20 @@ SELECT
 FROM road_issues r
 JOIN road_issue_status s ON s.id = r.status_id;
 
+-- =====================
+-- HISTORIQUE DES CHANGEMENTS DE STATUT
+-- =====================
+CREATE TABLE IF NOT EXISTS road_issue_status_history (
+    id SERIAL PRIMARY KEY,
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+    status_id INT NOT NULL REFERENCES road_issue_status(id),
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    changed_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_status_history_issue ON road_issue_status_history(road_issue_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_status ON road_issue_status_history(status_id);
+
 -- ============================================================
 -- FIN DU SCRIPT SCHEMA
 -- ============================================================

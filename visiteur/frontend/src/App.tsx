@@ -7,9 +7,10 @@ import BlockedUsersPage from './pages/BlockedUsersPage'
 import AllUsersPage from './pages/AllUsersPage'
 import AddUserPage from './pages/AddUserPage'
 import IssuesPage from './pages/IssuesPage'
+import StatisticsPage from './pages/StatisticsPage'
 import './styles.css'
 
-type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary'
+type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary' | 'statistics'
 
 export default function App() {
   // Check URL path for initial page
@@ -64,8 +65,12 @@ export default function App() {
     return <IssuesPage onNavigate={handleNavigate} />
   }
 
+  if (currentPage === 'statistics' && isAuthenticated) {
+    return <StatisticsPage onNavigate={handleNavigate} />
+  }
+
   // Redirect to login if trying to access protected pages without auth
-  if (['home', 'blocked-users', 'all-users', 'add-user', 'issues'].includes(currentPage) && !isAuthenticated) {
+  if (['home', 'blocked-users', 'all-users', 'add-user', 'issues', 'statistics'].includes(currentPage) && !isAuthenticated) {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />
   }
 
