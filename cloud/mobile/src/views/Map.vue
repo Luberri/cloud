@@ -1744,7 +1744,7 @@ ion-content {
   color: white;
   font-size: 18px;
 
-  
+
 }
 
 .selected-location {
@@ -1756,6 +1756,7 @@ ion-content {
   align-items: center;
   gap: 8px;
   font-size: 14px;
+  
   color: #1976d2;
 }
 
