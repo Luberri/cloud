@@ -1179,6 +1179,15 @@ const useMyLocation = async () => {
   }
 };
 
+// Générer un UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // Soumettre le signalement
 const submitIssue = async () => {
   if (!selectedLocation.value || !newIssue.title || !newIssue.description || !selectedIssueType.value) {
@@ -1192,6 +1201,7 @@ const submitIssue = async () => {
     const currentUser = auth.currentUser;
     const reportedBy = currentUser?.uid || 'anonymous';
     const type = selectedIssueType.value;
+    const statusId = statusMapping[newIssue.status as keyof typeof statusMapping]?.id || 1;
     
     const photosData: string[] = [];
     for (const photo of capturedPhotos.value) {
@@ -1200,22 +1210,23 @@ const submitIssue = async () => {
       }
     }
     
-    const docRef = await addDoc(collection(db, 'signals'), {
+    const now = Timestamp.now();
+    
+    const docRef = await addDoc(collection(db, 'road_issues'), {
+      id: generateUUID(),
       title: newIssue.title,
       description: newIssue.description,
       latitude: selectedLocation.value.lat,
       longitude: selectedLocation.value.lng,
-      surface: newIssue.surface || 0,
-      budget: newIssue.budget || 0,
-      status: newIssue.status,
+      surfaceM2: (newIssue.surface || 0).toFixed(2),
+      budget: (newIssue.budget || 0).toFixed(2),
+      statusId: statusId,
       typeId: type.id,
-      type: type.label,
-      color: type.color,
-      icon: type.emoji,
+      companyId: null,
       photos: photosData,
       reportedBy: reportedBy,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
+      reportedAt: now,
+      updatedAt: now
     });
     
     console.log('Signalement créé avec ID:', docRef.id);
