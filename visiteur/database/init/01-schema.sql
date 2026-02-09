@@ -101,6 +101,23 @@ CREATE TABLE IF NOT EXISTS road_issues (
 );
 
 -- =====================
+-- IMAGES DES SIGNALEMENTS
+-- =====================
+CREATE TABLE IF NOT EXISTS issue_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+    storage_path TEXT NOT NULL,
+    download_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(50) DEFAULT 'image/jpeg',
+    uploaded_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_images_road_issue ON issue_images(road_issue_id);
+
+-- =====================
 -- JOURNAL DE SYNCHRONISATION
 -- =====================
 CREATE TABLE IF NOT EXISTS sync_logs (

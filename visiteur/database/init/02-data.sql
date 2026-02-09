@@ -46,5 +46,82 @@ INSERT INTO road_issues (title, description, location, surface_m2, budget, statu
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
+-- DONNÉES DE TEST - IMAGES DES SIGNALEMENTS
+-- ============================================================
+
+-- Images pour les signalements (exemples avec des URLs placeholder)
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_1.jpg',
+    'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800',
+    'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=200',
+    245000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Nid de poule%'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_2.jpg',
+    'https://images.unsplash.com/photo-1584592740039-cddf0671f3d4?w=800',
+    'https://images.unsplash.com/photo-1584592740039-cddf0671f3d4?w=200',
+    312000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Nid de poule%'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_1.jpg',
+    'https://images.unsplash.com/photo-1523676060187-f55189a71f5e?w=800',
+    'https://images.unsplash.com/photo-1523676060187-f55189a71f5e?w=200',
+    198000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Fissure%'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_1.jpg',
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=200',
+    287000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Dégradation%' OR r.title LIKE '%Erosion%' OR r.title LIKE '%Affaissement%'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_2.jpg',
+    'https://images.unsplash.com/photo-1604357209793-fca5dca89f97?w=800',
+    'https://images.unsplash.com/photo-1604357209793-fca5dca89f97?w=200',
+    425000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Dégradation%'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO issue_images (road_issue_id, storage_path, download_url, thumbnail_url, file_size_bytes, mime_type) 
+SELECT 
+    r.id,
+    'road_issues/' || r.id || '/photo_3.jpg',
+    'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=800',
+    'https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=200',
+    356000,
+    'image/jpeg'
+FROM road_issues r
+WHERE r.title LIKE '%Dégradation%'
+ON CONFLICT DO NOTHING;
+
+-- ============================================================
 -- FIN DES DONNÉES INITIALES
 -- ============================================================
