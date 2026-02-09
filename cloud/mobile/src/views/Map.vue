@@ -1743,6 +1743,7 @@ ion-content {
   justify-content: center;
   color: white;
   font-size: 18px;
+  
 }
 
 .selected-location {
@@ -1980,4 +1981,5 @@ ion-content {
   background: transparent;
   border: none;
 }
+
 </style>
