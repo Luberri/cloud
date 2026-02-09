@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface IssueImageRepository extends JpaRepository<IssueImage, UUID> {
     List<IssueImage> findByRoadIssueIdOrderByCreatedAtDesc(UUID roadIssueId);
     long countByRoadIssueId(UUID roadIssueId);
+    List<IssueImage> findByRoadIssueId(UUID roadIssueId);
+    boolean existsByRoadIssueIdAndStoragePath(UUID roadIssueId, String storagePath);
+    void deleteByRoadIssueId(UUID roadIssueId);
+
 }

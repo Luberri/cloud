@@ -171,28 +171,54 @@ CREATE INDEX IF NOT EXISTS idx_rish_issue ON road_issue_status_history(road_issu
 CREATE INDEX IF NOT EXISTS idx_rish_status ON road_issue_status_history(status_id);
 CREATE INDEX IF NOT EXISTS idx_rish_changed_at ON road_issue_status_history(changed_at);
 
-CREATE TABLE IF NOT EXISTS image_issues (
+-- Extension pour UUID (si pas déjà créée)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Table pour les images des signalements
+CREATE TABLE IF NOT EXISTS issue_images (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
-
-    -- Chemin dans Firebase Storage (ex: road_issues/{firebase_id}/{image}.jpg)
+    
+    -- Chemin de stockage (ex: road_issues/{firebase_id}/{image}.jpg)
     storage_path TEXT NOT NULL,
-
-    -- (optionnel) URL directe / miniature (souvent générée côté backend via URL signée)
-    download_url TEXT,
+    
+    -- URL de téléchargement (Firebase Storage ou local)
+    download_url TEXT NOT NULL,
+    
+    -- URL miniature (optionnel)
     thumbnail_url TEXT,
-
+    
+    -- Métadonnées du fichier
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(50) DEFAULT 'image/jpeg',
+    
+    -- Utilisateur qui a uploadé l'image
+    uploaded_by UUID,
+    
+    -- Date de création
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- éviter doublons lors des sync
-CREATE UNIQUE INDEX IF NOT EXISTS uq_image_issues_issue_path
-ON image_issues(road_issue_id, storage_path);
+-- Index pour éviter les doublons lors de la synchronisation
+CREATE UNIQUE INDEX IF NOT EXISTS uq_issue_images_issue_path
+ON issue_images(road_issue_id, storage_path);
 
-CREATE INDEX IF NOT EXISTS idx_image_issues_issue
-ON image_issues(road_issue_id);
+-- Index pour améliorer les requêtes par road_issue_id
+CREATE INDEX IF NOT EXISTS idx_issue_images_issue
+ON issue_images(road_issue_id);
 
+-- Index pour les requêtes par date
+CREATE INDEX IF NOT EXISTS idx_issue_images_created_at
+ON issue_images(created_at DESC);
 
+-- Commentaires pour documentation
+COMMENT ON TABLE issue_images IS 'Stocke les références aux images associées aux signalements routiers';
+COMMENT ON COLUMN issue_images.storage_path IS 'Chemin relatif du fichier dans le système de stockage';
+COMMENT ON COLUMN issue_images.download_url IS 'URL complète pour télécharger l''image';
+COMMENT ON COLUMN issue_images.thumbnail_url IS 'URL de la version miniature de l''image';
+COMMENT ON COLUMN issue_images.file_size_bytes IS 'Taille du fichier en octets';
+COMMENT ON COLUMN issue_images.mime_type IS 'Type MIME du fichier (ex: image/jpeg, image/png)';
+COMMENT ON COLUMN issue_images.uploaded_by IS 'UUID de l''utilisateur qui a uploadé l''image';
 -- =====================
 -- DONNÉES DE TEST : HISTORIQUE STATUTS POUR 1 ISSUE
 -- =====================
