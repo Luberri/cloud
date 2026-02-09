@@ -21,6 +21,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [issues, setIssues] = useState<RoadIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<number | null>(null);
 
   const [editingIssue, setEditingIssue] = useState<RoadIssue | null>(null);
 
@@ -93,6 +94,10 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   if (error) return <p>Erreur : {error}</p>;
   if (!issues.length) return <p>Aucun signalement.</p>;
 
+  const filteredIssues = statusFilter === null 
+    ? issues 
+    : issues.filter(i => i.statusId === statusFilter);
+
   return (
     <div className="issues-page">
       <button
@@ -104,6 +109,33 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
       </button>
 
       <h1>Signalements routiers</h1>
+
+      <div className="filter-container">
+        <button
+          className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
+          onClick={() => setStatusFilter(null)}
+        >
+          Tous ({issues.length})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === 1 ? 'active' : ''}`}
+          onClick={() => setStatusFilter(1)}
+        >
+          Nouveau ({issues.filter(i => i.statusId === 1).length})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === 2 ? 'active' : ''}`}
+          onClick={() => setStatusFilter(2)}
+        >
+          En cours ({issues.filter(i => i.statusId === 2).length})
+        </button>
+        <button
+          className={`filter-btn ${statusFilter === 3 ? 'active' : ''}`}
+          onClick={() => setStatusFilter(3)}
+        >
+          Terminé ({issues.filter(i => i.statusId === 3).length})
+        </button>
+      </div>
 
       <table className="issues-table">
         <thead>
@@ -118,7 +150,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
           </tr>
         </thead>
         <tbody>
-          {issues.map((i) => (
+          {filteredIssues.map((i) => (
             <tr key={i.id}>
               <td>{i.title}</td>
               <td>{i.description}</td>
