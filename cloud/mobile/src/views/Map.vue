@@ -1743,6 +1743,7 @@ ion-content {
   justify-content: center;
   color: white;
   font-size: 18px;
+
   
 }
 
