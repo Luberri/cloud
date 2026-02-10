@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { getJson, putJson } from "../api/client";
 import "./IssuesPage.css";
 
+interface IssueImage {
+  id: number;
+  imagePath: string;
+  uploadedAt: string;
+}
+
 interface RoadIssue {
   id: string;
   title: string;
@@ -11,6 +17,7 @@ interface RoadIssue {
   statusId: number | null;
   status?: { label: string };
   reportedAt: string;
+  images?: IssueImage[];
 }
 
 interface IssuesPageProps {
@@ -24,6 +31,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [statusFilter, setStatusFilter] = useState<number | null>(null);
 
   const [editingIssue, setEditingIssue] = useState<RoadIssue | null>(null);
+  const [selectedIssueImages, setSelectedIssueImages] = useState<IssueImage[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -37,13 +45,13 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJson<RoadIssue[]>("/issues")
+    getJson<RoadIssue[]>("/api/issues")
       .then(setIssues)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const startEdit = (issue: RoadIssue) => {
+  const startEdit = async (issue: RoadIssue) => {
     setEditingIssue(issue);
     setForm({
       title: issue.title || "",
@@ -53,6 +61,15 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
       statusId: issue.statusId?.toString() ?? "",
     });
     setFormError(null);
+
+    // Charger les images
+    try {
+      const images = await getJson<IssueImage[]>(`/api/issues/${issue.id}/images`);
+      setSelectedIssueImages(images);
+    } catch (err) {
+      console.error("Erreur lors du chargement des images:", err);
+      setSelectedIssueImages([]);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -76,13 +93,14 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
         statusId: form.statusId === "" ? null : Number(form.statusId),
       };
 
-      const updated = await putJson<RoadIssue>(`/issues/${editingIssue.id}`, payload);
+      const updated = await putJson<RoadIssue>(`/api/issues/${editingIssue.id}`, payload);
 
       setIssues((prev) =>
         prev.map((i) => (i.id === updated.id ? updated : i))
       );
 
       setEditingIssue(null);
+      setSelectedIssueImages([]);
     } catch (err: any) {
       setFormError(err.message);
     } finally {
@@ -242,6 +260,28 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                 <option value="3">Terminé</option>
               </select>
 
+              {selectedIssueImages.length > 0 && (
+                <div>
+                  <label>Photos du signalement</label>
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
+                    {selectedIssueImages.map((img) => (
+                      <img
+                        key={img.id}
+                        src={`http://localhost:8082/api/images/${img.imagePath}`}
+                        alt="Signalement"
+                        style={{
+                          width: "150px",
+                          height: "150px",
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          border: "1px solid #ddd"
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button type="submit" disabled={saving}>
                 {saving ? "Enregistrement..." : "Enregistrer les modifications"}
               </button>
@@ -249,7 +289,10 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
               <button
                 type="button"
                 className="cancel-btn"
-                onClick={() => setEditingIssue(null)}
+                onClick={() => {
+                  setEditingIssue(null);
+                  setSelectedIssueImages([]);
+                }}
               >
                 Annuler
               </button>

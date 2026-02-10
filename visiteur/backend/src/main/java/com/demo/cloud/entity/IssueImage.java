@@ -1,5 +1,6 @@
 package com.demo.cloud.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -9,38 +10,39 @@ import java.util.UUID;
 public class IssueImage {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-    
+
     @Column(name = "road_issue_id", nullable = false)
     private UUID roadIssueId;
-    
-    @Column(name = "storage_path", columnDefinition = "TEXT", nullable = false)
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "road_issue_id", insertable = false, updatable = false)
+    private RoadIssue roadIssue;
+
+    @Column(name = "storage_path", nullable = false)
     private String storagePath;
-    
-    @Column(name = "download_url", columnDefinition = "TEXT", nullable = false)
+
+    @Column(name = "download_url")
     private String downloadUrl;
-    
-    @Column(name = "thumbnail_url", columnDefinition = "TEXT")
+
+    @Column(name = "thumbnail_url")
     private String thumbnailUrl;
-    
+
     @Column(name = "file_size_bytes")
     private Long fileSizeBytes;
-    
-    @Column(name = "mime_type", length = 50)
-    private String mimeType = "image/jpeg";
-    
+
+    @Column(name = "mime_type")
+    private String mimeType;
+
     @Column(name = "uploaded_by")
     private UUID uploadedBy;
-    
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public IssueImage() {
-        this.createdAt = LocalDateTime.now();
-    }
-
-    // Getters and Setters
+    // Getters et setters
     public UUID getId() {
         return id;
     }
@@ -55,6 +57,14 @@ public class IssueImage {
 
     public void setRoadIssueId(UUID roadIssueId) {
         this.roadIssueId = roadIssueId;
+    }
+
+    public RoadIssue getRoadIssue() {
+        return roadIssue;
+    }
+
+    public void setRoadIssue(RoadIssue roadIssue) {
+        this.roadIssue = roadIssue;
     }
 
     public String getStoragePath() {

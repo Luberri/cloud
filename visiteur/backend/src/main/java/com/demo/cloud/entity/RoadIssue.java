@@ -20,8 +20,8 @@ public class RoadIssue {
     private String title;
     private String description;
 
-    @JsonIgnore  // Ajouter cette annotation
-    @Column(columnDefinition = "geometry(Point,4326)")
+    @JsonIgnore
+    @Column(name = "location", columnDefinition = "geography(Point, 4326)")
     private Point location;
 
     @Column(name = "surface_m2")
