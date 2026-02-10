@@ -1534,6 +1534,7 @@ const submitIssue = async () => {
     return;
   }
   
+  
   if (capturedPhotos.value.length > 3) {
     error.value = 'Maximum 3 photos par signalement';
     return;
