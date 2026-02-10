@@ -1368,12 +1368,32 @@ const useMyLocation = async () => {
   gettingLocation.value = true;
   
   try {
+    // Étape 1: Vérifier et demander les permissions
+    let permissionStatus = await Geolocation.checkPermissions();
+    console.log('📍 Permission actuelle:', permissionStatus.location);
+    
+    if (permissionStatus.location !== 'granted') {
+      console.log('📍 Demande de permission de localisation...');
+      permissionStatus = await Geolocation.requestPermissions();
+      console.log('📍 Nouvelle permission:', permissionStatus.location);
+      
+      if (permissionStatus.location !== 'granted') {
+        throw new Error('Permission de localisation refusée. Veuillez l\'activer dans les paramètres de votre téléphone.');
+      }
+    }
+    
+    // Étape 2: Récupérer la position
+    console.log('📍 Récupération de la position...');
+    
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 10000
+      timeout: 15000, // Augmenter le timeout à 15 secondes
+      maximumAge: 0 // Toujours récupérer une position fraîche
     });
     
     const { latitude, longitude } = position.coords;
+    console.log(`📍 Position récupérée: ${latitude}, ${longitude}`);
+    
     selectedLocation.value = { lat: latitude, lng: longitude };
     
     if (map) {
@@ -1392,8 +1412,22 @@ const useMyLocation = async () => {
     showModal.value = true;
     
   } catch (e: any) {
-    console.error('Erreur géolocalisation:', e);
-    error.value = 'Impossible de récupérer votre position. Vérifiez les permissions.';
+    console.error('❌ Erreur géolocalisation:', e);
+    
+    // Messages d'erreur plus précis
+    let errorMessage = 'Impossible de récupérer votre position.';
+    
+    if (e.message?.includes('permission') || e.message?.includes('Permission')) {
+      errorMessage = 'Permission de localisation refusée. Activez-la dans Paramètres > Applications > photo-gallery > Autorisations > Localisation.';
+    } else if (e.message?.includes('timeout') || e.code === 3) {
+      errorMessage = 'Délai dépassé. Assurez-vous que le GPS est activé et réessayez.';
+    } else if (e.message?.includes('unavailable') || e.code === 2) {
+      errorMessage = 'Service de localisation indisponible. Activez le GPS dans les paramètres.';
+    } else if (e.code === 1) {
+      errorMessage = 'Permission refusée. Autorisez l\'accès à la localisation dans les paramètres.';
+    }
+    
+    error.value = errorMessage;
   } finally {
     gettingLocation.value = false;
   }
