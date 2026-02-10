@@ -1,0 +1,392 @@
+{
+  "info": {
+    "_postman_id": "34cad6ad-487a-4e6c-92b8-92f9656cec85",
+    "name": "cloud",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "49515398",
+    "_collection_link": "https://go.postman.co/collection/49515398-34cad6ad-487a-4e6c-92b8-92f9656cec85?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "http://localhost:8082/auth/login",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"email\": \"manager@admin.com\",\r\n  \"password\": \"hash123\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8082/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/public/summary",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/public/summary",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "public",
+            "summary"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/public/statistics",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/public/statistics",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "public",
+            "statistics"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/public/road-issues",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/public/road-issues",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "public",
+            "road-issues"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/issues",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8082/issues",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "issues"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/users",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8082/users",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "users"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/users/blocked",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8082/users/blocked",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "users",
+            "blocked"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/sync/all",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8082/sync/all",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "sync",
+            "all"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/sync/images/push",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/sync/images/push",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "sync",
+            "images",
+            "push"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/api/issues",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/api/issues",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "api",
+            "issues"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/api/map/issues",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/api/map/issues",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "api",
+            "map",
+            "issues"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/api/issues/00000000-0000-0000-0000-000000000000/images",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/api/issues/00000000-0000-0000-0000-000000000000/images",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "api",
+            "issues",
+            "00000000-0000-0000-0000-000000000000",
+            "images"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/sync/status-changes",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/sync/status-changes",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "sync",
+            "status-changes"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/sync/images",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/sync/images",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "sync",
+            "images"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "http://localhost:8082/auth/blocked",
+      "request": {
+        "auth": {
+          "type": "inherit"
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8082/auth/blocked",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8082",
+          "path": [
+            "auth",
+            "blocked"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
