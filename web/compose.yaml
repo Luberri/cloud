@@ -33,6 +33,7 @@ services:
 
   # Backend Spring Boot
   backend:
+    image: visiteur-backend:latest
     build: ./backend
     container_name: spring_backend
     restart: always
@@ -48,6 +49,7 @@ services:
 
   # Frontend React
   frontend:
+    image: visiteur-frontend:latest
     build: ./frontend
     container_name: react_frontend
     restart: always
