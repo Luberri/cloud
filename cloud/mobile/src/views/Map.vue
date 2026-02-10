@@ -1533,8 +1533,9 @@ const submitIssue = async () => {
     error.value = 'Veuillez sélectionner un niveau de gravité (1-10)';
     return;
   }
+
   
-  
+
   if (capturedPhotos.value.length > 3) {
     error.value = 'Maximum 3 photos par signalement';
     return;
@@ -1617,6 +1618,7 @@ const submitIssue = async () => {
     console.log('💾 Sauvegarde dans Firestore...');
     
     const docRef = await addDoc(collection(db, 'road_issues'), issueData);
+    
     
     console.log('✅ Signalement créé avec ID:', docRef.id);
     
