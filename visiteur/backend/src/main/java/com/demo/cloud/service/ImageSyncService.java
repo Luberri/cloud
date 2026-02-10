@@ -49,63 +49,167 @@ public class ImageSyncService {
             ApiFuture<QuerySnapshot> future = firestore.collection("road_issues").get();
             List<QueryDocumentSnapshot> documents = future.get().getDocuments();
 
+            System.out.println("\n=== DÉBUT SYNCHRONISATION IMAGES ===");
+            System.out.println("📥 " + documents.size() + " documents Firebase trouvés\n");
+
             for (QueryDocumentSnapshot doc : documents) {
                 String firebaseId = doc.getId();
+                String issueIdString = doc.getString("id");
                 
-                Optional<RoadIssue> optionalIssue = roadIssueRepository.findByFirebaseId(firebaseId);
+                System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                System.out.println("🔍 Document Firebase: " + firebaseId);
+                System.out.println("   Issue ID: " + issueIdString);
+                
+                // ✅ CORRECTION: Récupérer le champ photosBase64
+                Object photosObj = doc.get("photosBase64");
+                
+                if (photosObj == null) {
+                    System.out.println("   ⚠️ Aucun champ 'photosBase64'");
+                    
+                    // Vérifier aussi le champ 'photos' pour compatibilité
+                    photosObj = doc.get("photos");
+                    if (photosObj != null) {
+                        System.out.println("   💡 Champ 'photos' trouvé (ancien format)");
+                    } else {
+                        System.out.println("   💡 Vérifiez que l'app mobile stocke bien en base64");
+                        continue;
+                    }
+                }
+                
+                // ✅ Convertir l'objet en List<String>
+                List<String> photosBase64 = null;
+                
+                if (photosObj instanceof List) {
+                    photosBase64 = (List<String>) photosObj;
+                } else if (photosObj instanceof ArrayList) {
+                    photosBase64 = (ArrayList<String>) photosObj;
+                } else if (photosObj.getClass().isArray()) {
+                    // Si c'est un array natif, le convertir en List
+                    Object[] array = (Object[]) photosObj;
+                    photosBase64 = new ArrayList<>();
+                    for (Object item : array) {
+                        if (item instanceof String) {
+                            photosBase64.add((String) item);
+                        }
+                    }
+                } else {
+                    System.out.println("   ⚠️ Type inattendu: " + photosObj.getClass().getName());
+                    continue;
+                }
+                
+                if (photosBase64 == null || photosBase64.isEmpty()) {
+                    System.out.println("   ℹ️ Liste photosBase64 vide");
+                    continue;
+                }
+                
+                System.out.println("   📸 " + photosBase64.size() + " photo(s) trouvée(s)");
+                
+                // Afficher un aperçu de la première photo
+                if (!photosBase64.isEmpty()) {
+                    String firstPhoto = photosBase64.get(0);
+                    int length = Math.min(firstPhoto.length(), 50);
+                    System.out.println("   🔍 Aperçu base64[0]: " + firstPhoto.substring(0, length) + "...");
+                    System.out.println("   📊 Taille base64[0]: " + firstPhoto.length() + " caractères");
+                    
+                    // Vérifier si c'est bien du base64
+                    if (firstPhoto.matches("^[A-Za-z0-9+/]+={0,2}$")) {
+                        System.out.println("   ✅ Format base64 valide");
+                    } else {
+                        System.out.println("   ⚠️ Le format ne semble pas être du base64 pur");
+                    }
+                }
+                
+                // Chercher le signalement dans PostgreSQL
+                Optional<RoadIssue> optionalIssue = Optional.empty();
+                
+                // 1) Chercher par firebaseId
+                if (firebaseId != null) {
+                    optionalIssue = roadIssueRepository.findByFirebaseId(firebaseId);
+                    if (optionalIssue.isPresent()) {
+                        System.out.println("   ✅ Trouvé par firebaseId");
+                    }
+                }
+                
+                // 2) Chercher par UUID
+                if (!optionalIssue.isPresent() && issueIdString != null) {
+                    try {
+                        UUID issueUuid = UUID.fromString(issueIdString);
+                        optionalIssue = roadIssueRepository.findById(issueUuid);
+                        if (optionalIssue.isPresent()) {
+                            System.out.println("   ✅ Trouvé par UUID");
+                            
+                            // Mettre à jour le firebaseId
+                            RoadIssue issue = optionalIssue.get();
+                            if (issue.getFirebaseId() == null) {
+                                issue.setFirebaseId(firebaseId);
+                                roadIssueRepository.save(issue);
+                                System.out.println("   📝 Firebase ID ajouté au signalement");
+                            }
+                        }
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("   ⚠️ UUID invalide: " + issueIdString);
+                    }
+                }
+                
                 if (!optionalIssue.isPresent()) {
-                    System.out.println("⚠️ Issue non trouvée: " + firebaseId);
+                    System.out.println("   ❌ Signalement non trouvé dans PostgreSQL");
+                    System.out.println("   💡 Exécutez d'abord: POST /sync/all");
                     continue;
                 }
                 
                 RoadIssue localIssue = optionalIssue.get();
-
-                // Récupérer les photos en base64
-                List<String> photosBase64 = (List<String>) doc.get("photosBase64");
+                System.out.println("   ✅ Signalement: " + localIssue.getTitle());
                 
-                if (photosBase64 != null && !photosBase64.isEmpty()) {
-                    Path issuePhotosDir = Paths.get(PHOTOS_BASE_PATH, localIssue.getId().toString());
-                    Files.createDirectories(issuePhotosDir);
+                // Créer le dossier pour les images
+                Path issuePhotosDir = Paths.get(PHOTOS_BASE_PATH, localIssue.getId().toString());
+                Files.createDirectories(issuePhotosDir);
+                System.out.println("   📁 Dossier: " + issuePhotosDir.toAbsolutePath());
+                
+                // Traiter chaque photo
+                for (int i = 0; i < photosBase64.size(); i++) {
+                    String base64Data = photosBase64.get(i);
+                    String storagePath = localIssue.getId() + "/image_" + i + ".jpg";
                     
-                    for (int i = 0; i < photosBase64.size(); i++) {
-                        String base64Data = photosBase64.get(i);
+                    // Vérifier si déjà synchronisée
+                    if (issueImageRepository.existsByRoadIssueIdAndStoragePath(
+                            localIssue.getId(), storagePath)) {
+                        System.out.println("   ⏭️  Image " + i + " déjà synchronisée");
+                        continue;
+                    }
+                    
+                    String fileName = saveBase64Image(base64Data, issuePhotosDir, i);
+                    
+                    if (fileName != null) {
+                        // Sauvegarder dans la base de données
+                        IssueImage image = new IssueImage();
+                        image.setRoadIssueId(localIssue.getId());
+                        image.setStoragePath(storagePath);
+                        image.setDownloadUrl("/photos/" + localIssue.getId() + "/" + fileName);
                         
-                        String storagePath = localIssue.getId() + "/image_" + i + ".jpg";
-                        
-                        if (!issueImageRepository.existsByRoadIssueIdAndStoragePath(
-                                localIssue.getId(), storagePath)) {
-                            
-                            String fileName = saveBase64Image(base64Data, issuePhotosDir, i);
-                            
-                            if (fileName != null) {
-                                IssueImage image = new IssueImage();
-                                image.setRoadIssueId(localIssue.getId());
-                                image.setStoragePath(storagePath);
-                                image.setDownloadUrl("/photos/" + localIssue.getId() + "/" + fileName);
-                                
-                                String reportedBy = doc.getString("reportedBy");
-                                if (reportedBy != null) {
-                                    try {
-                                        image.setUploadedBy(UUID.fromString(reportedBy));
-                                    } catch (IllegalArgumentException e) {
-                                        // Ignorer
-                                    }
-                                }
-                                
-                                issueImageRepository.save(image);
-                                imagesPulled++;
-                                System.out.println("✅ Image sauvegardée: " + fileName);
+                        String reportedBy = doc.getString("reportedBy");
+                        if (reportedBy != null) {
+                            try {
+                                image.setUploadedBy(UUID.fromString(reportedBy));
+                            } catch (IllegalArgumentException e) {
+                                // Ignorer si UUID invalide
                             }
                         }
+                        
+                        issueImageRepository.save(image);
+                        imagesPulled++;
+                        System.out.println("   ✅ Image " + i + " synchronisée: " + fileName);
                     }
                 }
             }
             
-            System.out.println("✅ Total images synchronisées: " + imagesPulled);
+            System.out.println("\n=== FIN SYNCHRONISATION ===");
+            System.out.println("✅ Total: " + imagesPulled + " image(s) synchronisée(s)\n");
             
         } catch (Exception e) {
-            System.err.println("❌ Erreur synchronisation: " + e.getMessage());
-            throw new RuntimeException("Erreur lors du PULL des images", e);
+            System.err.println("\n❌ ERREUR CRITIQUE:");
+            System.err.println("   Message: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("Erreur synchronisation images", e);
         }
 
         return imagesPulled;
@@ -113,20 +217,68 @@ public class ImageSyncService {
 
     private String saveBase64Image(String base64Data, Path destinationDir, int index) {
         try {
-            // Décoder base64
-            byte[] imageBytes = Base64.getDecoder().decode(base64Data);
+            System.out.println("      🔄 Décodage image " + index + "...");
+            
+            // Nettoyer la chaîne base64
+            if (base64Data == null || base64Data.trim().isEmpty()) {
+                System.err.println("      ❌ Base64 vide");
+                return null;
+            }
+            
+            // Supprimer les espaces et retours à la ligne
+            base64Data = base64Data.replaceAll("\\s", "");
+            
+            // Vérifier la longueur minimale
+            if (base64Data.length() < 100) {
+                System.err.println("      ❌ Base64 trop court: " + base64Data.length() + " chars");
+                return null;
+            }
+            
+            System.out.println("      📊 Longueur base64: " + base64Data.length() + " chars");
+            
+            // Décoder
+            byte[] imageBytes;
+            try {
+                imageBytes = Base64.getDecoder().decode(base64Data);
+            } catch (IllegalArgumentException e) {
+                System.err.println("      ❌ Erreur décodage: " + e.getMessage());
+                System.err.println("      🔍 Premiers chars: " + base64Data.substring(0, Math.min(100, base64Data.length())));
+                return null;
+            }
+            
+            if (imageBytes.length == 0) {
+                System.err.println("      ❌ Image vide après décodage");
+                return null;
+            }
+            
+            // Vérifier le magic number (FFD8 pour JPEG, 8950 pour PNG)
+            if (imageBytes.length >= 2) {
+                String hex = String.format("%02X%02X", imageBytes[0] & 0xFF, imageBytes[1] & 0xFF);
+                System.out.println("      🔍 Magic number: " + hex);
+                
+                if (hex.equals("FFD8")) {
+                    System.out.println("      ✅ Format JPEG détecté");
+                } else if (hex.equals("8950")) {
+                    System.out.println("      ✅ Format PNG détecté");
+                } else {
+                    System.err.println("      ⚠️ Format image inconnu (magic: " + hex + ")");
+                }
+            }
             
             String fileName = "image_" + index + ".jpg";
             Path filePath = destinationDir.resolve(fileName);
             
-            // Sauvegarder le fichier
+            // Sauvegarder
             Files.write(filePath, imageBytes);
             
-            System.out.println("✅ Image décodée: " + filePath + " (" + (imageBytes.length / 1024) + " KB)");
+            double sizeKB = imageBytes.length / 1024.0;
+            System.out.println("      ✅ Sauvegardé: " + fileName + " (" + String.format("%.2f", sizeKB) + " KB)");
+            
             return fileName;
             
         } catch (Exception e) {
-            System.err.println("❌ Erreur décodage base64: " + e.getMessage());
+            System.err.println("      ❌ Erreur: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }
@@ -280,5 +432,56 @@ public class ImageSyncService {
         
         // Fallback: utiliser l'URL comme identifiant
         return photoUrl.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    /**
+     * PULL: Synchronise les signalements depuis Firebase vers PostgreSQL
+     */
+    @Transactional
+    public int pullRoadIssuesFromFirebase() {
+        int issuesPulled = 0;
+        
+        try {
+            Firestore firestore = FirestoreClient.getFirestore();
+            ApiFuture<QuerySnapshot> future = firestore.collection("road_issues").get();
+            List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+            for (QueryDocumentSnapshot doc : documents) {
+                String firebaseId = doc.getId();
+                String issueId = doc.getString("id");
+                
+                // Vérifier si l'issue existe déjà
+                Optional<RoadIssue> existing = issueId != null 
+                    ? roadIssueRepository.findById(UUID.fromString(issueId))
+                    : Optional.empty();
+                
+                if (existing.isPresent()) {
+                    // Mettre à jour le firebaseId si manquant
+                    RoadIssue issue = existing.get();
+                    if (issue.getFirebaseId() == null) {
+                        issue.setFirebaseId(firebaseId);
+                        roadIssueRepository.save(issue);
+                        System.out.println("✅ Firebase ID mis à jour pour: " + issue.getId());
+                    }
+                    continue;
+                }
+                
+                // Créer une nouvelle issue
+                RoadIssue newIssue = new RoadIssue();
+                newIssue.setId(issueId != null ? UUID.fromString(issueId) : UUID.randomUUID());
+                newIssue.setFirebaseId(firebaseId); // ✅ IMPORTANT
+                newIssue.setTitle(doc.getString("title"));
+                newIssue.setDescription(doc.getString("description"));
+                
+                // ... reste du code ...
+                
+                roadIssueRepository.save(newIssue);
+                issuesPulled++;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Erreur PULL road_issues", e);
+        }
+        
+        return issuesPulled;
     }
 }
