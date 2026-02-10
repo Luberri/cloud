@@ -413,7 +413,8 @@ import { Geolocation } from '@capacitor/geolocation';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from '@/config/firebase';
 
 // Types de signalements avec icônes et couleurs
 interface IssueType {
@@ -1188,6 +1189,27 @@ const generateUUID = (): string => {
   });
 };
 
+// Uploader une photo vers Firebase Storage
+const uploadPhotoToStorage = async (photo: Photo, issueId: string, index: number): Promise<string> => {
+  if (!photo.webPath) throw new Error('Photo path is missing');
+  
+  // Récupérer le blob de l'image
+  const response = await fetch(photo.webPath);
+  const blob = await response.blob();
+  
+  // Créer le chemin de stockage
+  const fileName = `${Date.now()}_${index}.${photo.format || 'jpeg'}`;
+  const filePath = `road_issues/${issueId}/${fileName}`;
+  const fileRef = storageRef(storage, filePath);
+  
+  // Uploader le fichier
+  await uploadBytes(fileRef, blob);
+  
+  // Récupérer l'URL de téléchargement
+  const downloadURL = await getDownloadURL(fileRef);
+  return downloadURL;
+};
+
 // Soumettre le signalement
 const submitIssue = async () => {
   if (!selectedLocation.value || !newIssue.title || !newIssue.description || !selectedIssueType.value) {
@@ -1202,18 +1224,27 @@ const submitIssue = async () => {
     const reportedBy = currentUser?.uid || 'anonymous';
     const type = selectedIssueType.value;
     const statusId = statusMapping[newIssue.status as keyof typeof statusMapping]?.id || 1;
+    const issueId = generateUUID();
     
-    const photosData: string[] = [];
-    for (const photo of capturedPhotos.value) {
+    // Uploader les photos vers Firebase Storage
+    const photoUrls: string[] = [];
+    for (let i = 0; i < capturedPhotos.value.length; i++) {
+      const photo = capturedPhotos.value[i];
       if (photo.webPath) {
-        photosData.push(photo.webPath);
+        try {
+          const url = await uploadPhotoToStorage(photo, issueId, i);
+          photoUrls.push(url);
+          console.log(`Photo ${i + 1} uploadée:`, url);
+        } catch (uploadError) {
+          console.error(`Erreur upload photo ${i + 1}:`, uploadError);
+        }
       }
     }
     
     const now = Timestamp.now();
     
     const docRef = await addDoc(collection(db, 'road_issues'), {
-      id: generateUUID(),
+      id: issueId,
       title: newIssue.title,
       description: newIssue.description,
       latitude: selectedLocation.value.lat,
@@ -1223,7 +1254,7 @@ const submitIssue = async () => {
       statusId: statusId,
       typeId: type.id,
       companyId: null,
-      photos: photosData,
+      photos: photoUrls,
       reportedBy: reportedBy,
       reportedAt: now,
       updatedAt: now
@@ -1754,8 +1785,6 @@ ion-content {
   justify-content: center;
   color: white;
   font-size: 18px;
-
-
 }
 
 .selected-location {
@@ -1767,7 +1796,6 @@ ion-content {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  
   color: #1976d2;
 }
 
@@ -1994,5 +2022,4 @@ ion-content {
   background: transparent;
   border: none;
 }
-
 </style>
