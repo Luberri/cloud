@@ -79,23 +79,23 @@ public class RoadIssueController {
     @Operation(summary = "Lister les signalements avec coordonnées pour la carte")
     public List<Map<String, Object>> getIssuesForMap() {
         return roadIssueRepository.findAll().stream()
-            .map(issue -> {
-                Map<String, Object> issueMap = new HashMap<>();
-                issueMap.put("id", issue.getId());
-                issueMap.put("title", issue.getTitle());
-                issueMap.put("description", issue.getDescription());
-                issueMap.put("surfaceM2", issue.getSurfaceM2());
-                BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
-                int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
-                BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
-                issueMap.put("budget", prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
-                issueMap.put("statusId", issue.getStatusId());
-                issueMap.put("reportedAt", issue.getReportedAt());
-                issueMap.put("latitude", issue.getLatitude());
-                issueMap.put("longitude", issue.getLongitude());
-                return issueMap;
-            })
-            .collect(Collectors.toList());
+                .map(issue -> {
+                    Map<String, Object> issueMap = new HashMap<>();
+                    issueMap.put("id", issue.getId());
+                    issueMap.put("title", issue.getTitle());
+                    issueMap.put("description", issue.getDescription());
+                    issueMap.put("surfaceM2", issue.getSurfaceM2());
+                    BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
+                    int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
+                    BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
+                    issueMap.put("budget", prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
+                    issueMap.put("statusId", issue.getStatusId());
+                    issueMap.put("reportedAt", issue.getReportedAt());
+                    issueMap.put("latitude", issue.getLatitude());
+                    issueMap.put("longitude", issue.getLongitude());
+                    return issueMap;
+                })
+                .collect(Collectors.toList());
     }
 
     @PutMapping("/issues/{id}")
@@ -106,10 +106,10 @@ public class RoadIssueController {
             @RequestParam(required = false) UUID changedBy) {
 
         RoadIssue existing = roadIssueRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
+                .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
 
         boolean statusChanged = updated.getStatusId() != null
-            && !updated.getStatusId().equals(existing.getStatusId());
+                && !updated.getStatusId().equals(existing.getStatusId());
 
         existing.setTitle(updated.getTitle());
         existing.setDescription(updated.getDescription());
@@ -161,12 +161,12 @@ public class RoadIssueController {
         try {
             // Chemin: ../photos/{issueId}/{filename}
             Path filePath = Paths.get("../photos")
-                .resolve(issueId)
-                .resolve(filename)
-                .normalize();
-            
+                    .resolve(issueId)
+                    .resolve(filename)
+                    .normalize();
+
             System.out.println("Tentative de chargement de l'image: " + filePath.toAbsolutePath());
-            
+
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists() && resource.isReadable()) {
@@ -176,9 +176,9 @@ public class RoadIssueController {
                 }
 
                 return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .body(resource);
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                        .body(resource);
             } else {
                 System.err.println("Image non trouvée: " + filePath.toAbsolutePath());
                 return ResponseEntity.notFound().build();
