@@ -4,6 +4,8 @@ import com.demo.cloud.entity.RoadIssue;
 import com.demo.cloud.entity.RoadIssueStatusHistory;
 import com.demo.cloud.repository.RoadIssueRepository;
 import com.demo.cloud.repository.RoadIssueStatusHistoryRepository;
+import com.demo.cloud.service.RoadIssueService;
+import com.demo.cloud.service.RoadIssueStatusHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +22,18 @@ import java.util.UUID;
 public class RoadIssueController {
 
     private final RoadIssueRepository roadIssueRepository;
+    private final RoadIssueStatusHistoryService historyService;
+    private final RoadIssueService roadIssueService;
     private final RoadIssueStatusHistoryRepository statusHistoryRepository;
 
-    public RoadIssueController(RoadIssueRepository roadIssueRepository,
-                               RoadIssueStatusHistoryRepository statusHistoryRepository) {
+    public RoadIssueController(
+            RoadIssueRepository roadIssueRepository,
+            RoadIssueStatusHistoryService historyService,
+            RoadIssueService roadIssueService,
+         RoadIssueStatusHistoryRepository statusHistoryRepository) {
         this.roadIssueRepository = roadIssueRepository;
+        this.historyService = historyService;
+        this.roadIssueService = roadIssueService;
         this.statusHistoryRepository = statusHistoryRepository;
     }
 
@@ -36,11 +45,14 @@ public class RoadIssueController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Mettre à jour un signalement routier")
-    public ResponseEntity<RoadIssue> updateIssue(@PathVariable UUID id, @RequestBody RoadIssue updated) {
+    public ResponseEntity<RoadIssue> updateIssue(
+            @PathVariable UUID id,
+            @RequestBody RoadIssue updated,
+            @RequestParam(required = false) UUID changedBy) {
+
         RoadIssue existing = roadIssueRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
 
-        // Détecter le changement de statut pour l'historique
         boolean statusChanged = updated.getStatusId() != null
             && !updated.getStatusId().equals(existing.getStatusId());
 
