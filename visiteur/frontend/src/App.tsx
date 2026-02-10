@@ -100,7 +100,7 @@ export default function App() {
           className={`nav-btn ${currentPage === 'visitor' || currentPage === 'summary' ? 'active' : ''}`}
           onClick={() => setCurrentPage('visitor')}
         >
-          Résumé
+          Tableau de bord
         </button>
         <button
           className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}

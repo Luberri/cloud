@@ -30,9 +30,9 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
   
-  /* Spacing */
-  --header-height: 56px;
-  --footer-height: 44px;
+  /* Spacing - Hauteurs réduites pour maximiser l'espace carte */
+  --header-height: 40px;
+  --footer-height: 32px;
 }
 
 /* ========================================
@@ -300,51 +300,59 @@ body {
 }
 
 .map-header {
-  min-height: auto;
-  padding: 16px 20px;
+  height: var(--header-height);
+  min-height: var(--header-height);
+  max-height: var(--header-height);
+  padding: 0 16px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-light);
   box-shadow: var(--shadow-sm);
   z-index: 100;
+  display: flex;
+  align-items: center;
 }
 
 .header-content {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
 }
 
 .map-header h1 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  white-space: nowrap;
 }
 
 .map-header .subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .legend {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 4px;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -374,8 +382,8 @@ body {
 }
 
 .map-page .nav-links a {
-  padding: 8px 20px;
-  font-size: 13px;
+  padding: 6px 16px;
+  font-size: 12px;
   background: transparent;
   border: 1px solid var(--border-medium);
   color: var(--text-secondary);
