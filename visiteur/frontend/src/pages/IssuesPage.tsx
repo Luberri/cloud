@@ -92,7 +92,6 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
 
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
-  if (!issues.length) return <p>Aucun signalement.</p>;
 
   const filteredIssues = statusFilter === null 
     ? issues 
@@ -117,71 +116,77 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
 
       <h1>Signalements routiers</h1>
 
-      <div className="filter-container">
-        <button
-          className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
-          onClick={() => setStatusFilter(null)}
-        >
-          Tous ({issues.length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 1 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(1)}
-        >
-          Nouveau ({issues.filter(i => i.statusId === 1).length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 2 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(2)}
-        >
-          En cours ({issues.filter(i => i.statusId === 2).length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 3 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(3)}
-        >
-          Terminé ({issues.filter(i => i.statusId === 3).length})
-        </button>
-      </div>
+      {!issues.length ? (
+        <p>Aucun signalement pour le moment.</p>
+      ) : (
+        <>
+          <div className="filter-container">
+            <button
+              className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
+              onClick={() => setStatusFilter(null)}
+            >
+              Tous ({issues.length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 1 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(1)}
+            >
+              Nouveau ({issues.filter(i => i.statusId === 1).length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 2 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(2)}
+            >
+              En cours ({issues.filter(i => i.statusId === 2).length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 3 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(3)}
+            >
+              Terminé ({issues.filter(i => i.statusId === 3).length})
+            </button>
+          </div>
 
-      <table className="issues-table">
-        <thead>
-          <tr>
-            <th>Titre</th>
-            <th>Description</th>
-            <th>Surface</th>
-            <th>Budget</th>
-            <th>Avancement</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredIssues.map((i) => (
-            <tr key={i.id}>
-              <td>{i.title}</td>
-              <td>{i.description}</td>
-              <td>{i.surfaceM2}</td>
-              <td>{i.budget}</td>
-              <td>
-                <div className="progress-bar-container">
-                  <div
-                    className="progress-bar-fill"
-                    style={{ width: `${i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%` }}
-                  />
-                </div>
-                <span className="progress-label">{i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%</span>
-              </td>
-              <td>{i.reportedAt}</td>
-              <td>
-                <button className="small-btn" onClick={() => startEdit(i)}>
-                  Modifier
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <table className="issues-table">
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Description</th>
+                <th>Surface</th>
+                <th>Budget</th>
+                <th>Avancement</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredIssues.map((i) => (
+                <tr key={i.id}>
+                  <td>{i.title}</td>
+                  <td>{i.description}</td>
+                  <td>{i.surfaceM2}</td>
+                  <td>{i.budget}</td>
+                  <td>
+                    <div className="progress-bar-container">
+                      <div
+                        className="progress-bar-fill"
+                        style={{ width: `${i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%` }}
+                      />
+                    </div>
+                    <span className="progress-label">{i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%</span>
+                  </td>
+                  <td>{i.reportedAt}</td>
+                  <td>
+                    <button className="small-btn" onClick={() => startEdit(i)}>
+                      Modifier
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {editingIssue && (
         <div className="form-wrapper">

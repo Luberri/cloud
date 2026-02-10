@@ -1,5 +1,6 @@
 package com.demo.cloud.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -19,7 +20,8 @@ public class RoadIssue {
     private String title;
     private String description;
 
-    @Column(name = "location", columnDefinition = "geography(Point, 4326)")
+    @JsonIgnore  // Ajouter cette annotation
+    @Column(columnDefinition = "geometry(Point,4326)")
     private Point location;
 
     @Column(name = "surface_m2")
