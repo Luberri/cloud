@@ -28,6 +28,14 @@ public class RoadIssueStatusHistory {
         this.changedAt = LocalDateTime.now();
     }
 
+    // Added constructor to match service usage
+    public RoadIssueStatusHistory(UUID roadIssueId, Integer statusId, UUID changedBy) {
+        this.roadIssueId = roadIssueId;
+        this.statusId = statusId;
+        this.changedBy = changedBy;
+        this.changedAt = LocalDateTime.now();
+    }
+
     // Getters et Setters
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }
