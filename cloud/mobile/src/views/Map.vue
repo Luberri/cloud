@@ -1757,6 +1757,7 @@ const submitIssue = async () => {
       message += ` (${failedPhotos.length} photo(s) échouée(s))`;
     }
     
+    
     successMessage.value = message;
     
     closeModal();
