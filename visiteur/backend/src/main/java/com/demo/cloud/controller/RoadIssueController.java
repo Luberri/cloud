@@ -97,6 +97,7 @@ public class RoadIssueController {
         existing.setSurfaceM2(updated.getSurfaceM2());
         existing.setBudget(updated.getBudget());
         existing.setStatusId(updated.getStatusId());
+        existing.setNiveau(updated.getNiveau()); // ✅ Mise à jour du niveau
         existing.setUpdatedAt(LocalDateTime.now());
 
         RoadIssue saved = roadIssueRepository.save(existing);

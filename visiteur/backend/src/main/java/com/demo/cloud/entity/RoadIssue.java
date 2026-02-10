@@ -50,6 +50,10 @@ public class RoadIssue {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // ✅ Nouveau champ niveau (1 à 10)
+    @Column(name = "niveau")
+    private Integer niveau = 1;
+
     // ✅ Méthode helper pour définir les coordonnées
     public void setLocationFromCoordinates(double latitude, double longitude) {
         GeometryFactory geometryFactory = new GeometryFactory();
@@ -104,4 +108,14 @@ public class RoadIssue {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    // ✅ Getter et Setter pour niveau
+    public Integer getNiveau() { return niveau; }
+    public void setNiveau(Integer niveau) { 
+        if (niveau != null && niveau >= 1 && niveau <= 10) {
+            this.niveau = niveau;
+        } else {
+            this.niveau = 1; // Valeur par défaut
+        }
+    }
 }
