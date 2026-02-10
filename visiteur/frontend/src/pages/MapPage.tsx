@@ -176,6 +176,12 @@ export default function MapPage() {
                         </td>
                       </tr>
                       <tr>
+                        <td><strong>⚠️ Niveau:</strong></td>
+                        <td className={`niveau-${issue.niveauLabel?.toLowerCase()}`}>
+                          {issue.niveau}/10 - {issue.niveauLabel}
+                        </td>
+                      </tr>
+                      <tr>
                         <td><strong>📐 Surface:</strong></td>
                         <td>{issue.surfaceM2} m²</td>
                       </tr>
@@ -220,6 +226,12 @@ export default function MapPage() {
                       <span className="detail-label">📊 Statut</span>
                       <span className={`detail-value status-badge ${selectedIssue.statusCode?.toLowerCase()}`}>
                         {selectedIssue.statusLabel || 'Inconnu'}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">⚠️ Niveau</span>
+                      <span className={`detail-value niveau-badge niveau-${selectedIssue.niveauLabel?.toLowerCase()}`}>
+                        {selectedIssue.niveau}/10 - {selectedIssue.niveauLabel}
                       </span>
                     </div>
                     <div className="detail-item">
