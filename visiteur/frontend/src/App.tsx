@@ -9,8 +9,9 @@ import AddUserPage from './pages/AddUserPage'
 import IssuesPage from './pages/IssuesPage'
 import StatisticsPage from './pages/StatisticsPage'
 import './styles.css'
+import PrixForfaitairePage from './pages/PrixForfaitairePage'
 
-type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary' | 'statistics'
+type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary' | 'statistics' | 'prix-forfaitaire'
 
 export default function App() {
   // Check URL path for initial page
@@ -82,6 +83,10 @@ export default function App() {
 
     if (currentPage === 'summary') {
       return <VisitorSummaryPage />
+    }
+
+    if (currentPage === 'prix-forfaitaire') {
+      return <PrixForfaitairePage onNavigate={handleNavigate} />
     }
 
     // Default

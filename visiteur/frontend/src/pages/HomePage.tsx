@@ -136,6 +136,14 @@ export default function HomePage({ onNavigate, onLogout }: HomePageProps) {
             Voir le résumé
           </button>
         </div>
+
+        <div className="card">
+          <h3>Prix Forfaitaire</h3>
+          <p>Consulter et gérer les prix forfaitaires.</p>
+          <button className="btn" onClick={() => onNavigate('prix-forfaitaire')}>
+             Prix Forfaitaire
+          </button>
+        </div>
       </div>
     </div>
   );
