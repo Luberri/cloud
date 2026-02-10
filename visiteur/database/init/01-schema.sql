@@ -241,23 +241,28 @@ CREATE OR REPLACE FUNCTION calculate_budget()
 RETURNS TRIGGER AS $$
 DECLARE
     prix_unitaire NUMERIC(10,2);
+    niveau_val INTEGER;
 BEGIN
     -- Récupérer le prix forfaitaire actuel
     SELECT prix INTO prix_unitaire FROM prix_forfaitaire ORDER BY updated_at DESC LIMIT 1;
     
-    -- Si surface_m2 est défini et budget n'est pas défini
-    IF NEW.surface_m2 IS NOT NULL AND (NEW.budget IS NULL OR NEW.budget = 0) THEN
-        NEW.budget := NEW.surface_m2 * COALESCE(prix_unitaire, 50000);
+    -- Récupérer le niveau (défaut 1 si null)
+    niveau_val := COALESCE(NEW.niveau, 1);
+    IF niveau_val < 1 THEN niveau_val := 1; END IF;
+    
+    -- Calculer le budget: prix * niveau * surface_m2
+    IF NEW.surface_m2 IS NOT NULL THEN
+        NEW.budget := COALESCE(prix_unitaire, 50000) * niveau_val * NEW.surface_m2;
     END IF;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Créer le trigger
+-- Créer le trigger (déclenché aussi sur modification du niveau)
 DROP TRIGGER IF EXISTS trg_calculate_budget ON road_issues;
 CREATE TRIGGER trg_calculate_budget
-    BEFORE INSERT OR UPDATE OF surface_m2
+    BEFORE INSERT OR UPDATE OF surface_m2, niveau
     ON road_issues
     FOR EACH ROW
     EXECUTE FUNCTION calculate_budget();

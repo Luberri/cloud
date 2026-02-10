@@ -27,22 +27,22 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 
 -- Signalements routiers (10 problèmes avec différents statuts et niveaux)
-INSERT INTO road_issues (title, description, location, surface_m2, budget, status_id, company_id, reported_by, niveau) VALUES
+INSERT INTO road_issues (title, description, location, surface_m2, status_id, company_id, reported_by, niveau) VALUES
 -- 3 problèmes terminés (DONE)
-('Nid de poule RN7 km 12', 'Grand nid de poule dangereux', ST_GeographyFromText('POINT(47.5162 -18.9100)'), 15.50, 2500000, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 5),
-('Fissure Avenue Indépendance', 'Fissure longitudinale de 50m', ST_GeographyFromText('POINT(47.5255 -18.9137)'), 75.00, 8500000, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 3),
-('Affaissement Route Digue', 'Affaissement du sol sur 20m²', ST_GeographyFromText('POINT(47.5300 -18.9200)'), 20.00, 12000000, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 7),
+('Nid de poule RN7 km 12', 'Grand nid de poule dangereux', ST_GeographyFromText('POINT(47.5162 -18.9100)'), 15.50, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 5),
+('Fissure Avenue Indépendance', 'Fissure longitudinale de 50m', ST_GeographyFromText('POINT(47.5255 -18.9137)'), 75.00, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 3),
+('Affaissement Route Digue', 'Affaissement du sol sur 20m²', ST_GeographyFromText('POINT(47.5300 -18.9200)'), 20.00, (SELECT id FROM road_issue_status WHERE code = 'DONE'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 7),
 
 -- 4 problèmes en cours (IN_PROGRESS)
-('Dégradation RN1 Anosizato', 'Route très dégradée sur 100m', ST_GeographyFromText('POINT(47.4800 -18.9400)'), 200.00, 45000000, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 9),
-('Nids de poule Analakely', 'Plusieurs nids de poule', ST_GeographyFromText('POINT(47.5200 -18.9100)'), 8.50, 1200000, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 3, (SELECT id FROM users WHERE email = 'manager@admin.com'), 4),
-('Erosion bord de route Ivato', 'Erosion menaçant la chaussée', ST_GeographyFromText('POINT(47.4700 -18.8000)'), 45.00, 18000000, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 8),
-('Fissures multiples Ambohijatovo', 'Réseau de fissures', ST_GeographyFromText('POINT(47.5350 -18.9180)'), 120.00, 15000000, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 6),
+('Dégradation RN1 Anosizato', 'Route très dégradée sur 100m', ST_GeographyFromText('POINT(47.4800 -18.9400)'), 200.00, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 9),
+('Nids de poule Analakely', 'Plusieurs nids de poule', ST_GeographyFromText('POINT(47.5200 -18.9100)'), 8.50, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 3, (SELECT id FROM users WHERE email = 'manager@admin.com'), 4),
+('Erosion bord de route Ivato', 'Erosion menaçant la chaussée', ST_GeographyFromText('POINT(47.4700 -18.8000)'), 45.00, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 1, (SELECT id FROM users WHERE email = 'manager@admin.com'), 8),
+('Fissures multiples Ambohijatovo', 'Réseau de fissures', ST_GeographyFromText('POINT(47.5350 -18.9180)'), 120.00, (SELECT id FROM road_issue_status WHERE code = 'IN_PROGRESS'), 2, (SELECT id FROM users WHERE email = 'manager@admin.com'), 6),
 
 -- 3 problèmes nouveaux (NEW)
-('Effondrement partiel Ambanidia', 'Début effondrement route', ST_GeographyFromText('POINT(47.5400 -18.9300)'), 35.00, 25000000, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 10),
-('Nid de poule géant Ankorondrano', 'Très grand nid de poule', ST_GeographyFromText('POINT(47.5100 -18.8900)'), 5.00, 800000, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 2),
-('Revêtement décollé Andraharo', 'Bitume décollé sur 30m²', ST_GeographyFromText('POINT(47.5050 -18.8850)'), 30.00, 9500000, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 5)
+('Effondrement partiel Ambanidia', 'Début effondrement route', ST_GeographyFromText('POINT(47.5400 -18.9300)'), 35.00, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 10),
+('Nid de poule géant Ankorondrano', 'Très grand nid de poule', ST_GeographyFromText('POINT(47.5100 -18.8900)'), 5.00, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 2),
+('Revêtement décollé Andraharo', 'Bitume décollé sur 30m²', ST_GeographyFromText('POINT(47.5050 -18.8850)'), 30.00, (SELECT id FROM road_issue_status WHERE code = 'NEW'), NULL, (SELECT id FROM users WHERE email = 'manager@admin.com'), 5)
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

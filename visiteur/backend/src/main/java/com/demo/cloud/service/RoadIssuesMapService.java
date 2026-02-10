@@ -28,7 +28,10 @@ public class RoadIssuesMapService {
                 ST_Y(r.location::geometry) AS latitude,
                 ST_X(r.location::geometry) AS longitude,
                 r.surface_m2,
-                r.budget,
+                COALESCE(
+                    (SELECT prix FROM prix_forfaitaire ORDER BY updated_at DESC LIMIT 1), 
+                    50000
+                ) * COALESCE(r.niveau, 1) * COALESCE(r.surface_m2, 0) AS budget,
                 s.code AS status_code,
                 s.label AS status_label,
                 r.reported_at,
