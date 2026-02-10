@@ -22,6 +22,8 @@ export interface RoadIssuePoint {
   companyId?: number
   companyName?: string
   reportedAt: string
+  niveau: number
+  niveauLabel: string
 }
 
 const API_BASE_URL = 'http://localhost:8082/api'

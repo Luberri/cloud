@@ -1,5 +1,6 @@
 package com.demo.cloud.controller;
 
+import com.demo.cloud.dto.RoadIssuePointResponse;
 import com.demo.cloud.entity.RoadIssue;
 import com.demo.cloud.entity.RoadIssueStatusHistory;
 import com.demo.cloud.entity.IssueImage;
@@ -9,6 +10,7 @@ import com.demo.cloud.repository.IssueImageRepository;
 import com.demo.cloud.service.PrixForfaitaireService;
 import com.demo.cloud.service.RoadIssueService;
 import com.demo.cloud.service.RoadIssueStatusHistoryService;
+import com.demo.cloud.service.RoadIssuesMapService;
 import java.math.BigDecimal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,7 @@ public class RoadIssueController {
     private final RoadIssueStatusHistoryService historyService;
     private final RoadIssueService roadIssueService;
     private final RoadIssueStatusHistoryRepository statusHistoryRepository;
+    private final RoadIssuesMapService roadIssuesMapService;
     private final PrixForfaitaireService prixForfaitaireService;
 
     @Autowired
@@ -50,11 +53,13 @@ public class RoadIssueController {
             RoadIssueStatusHistoryService historyService,
             RoadIssueService roadIssueService,
             RoadIssueStatusHistoryRepository statusHistoryRepository,
+            RoadIssuesMapService roadIssuesMapService,
             PrixForfaitaireService prixForfaitaireService) {
         this.roadIssueRepository = roadIssueRepository;
         this.historyService = historyService;
         this.roadIssueService = roadIssueService;
         this.statusHistoryRepository = statusHistoryRepository;
+        this.roadIssuesMapService = roadIssuesMapService;
         this.prixForfaitaireService = prixForfaitaireService;
     }
 
@@ -77,25 +82,8 @@ public class RoadIssueController {
 
     @GetMapping("/map/issues")
     @Operation(summary = "Lister les signalements avec coordonnées pour la carte")
-    public List<Map<String, Object>> getIssuesForMap() {
-        return roadIssueRepository.findAll().stream()
-                .map(issue -> {
-                    Map<String, Object> issueMap = new HashMap<>();
-                    issueMap.put("id", issue.getId());
-                    issueMap.put("title", issue.getTitle());
-                    issueMap.put("description", issue.getDescription());
-                    issueMap.put("surfaceM2", issue.getSurfaceM2());
-                    BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
-                    int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
-                    BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
-                    issueMap.put("budget", prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
-                    issueMap.put("statusId", issue.getStatusId());
-                    issueMap.put("reportedAt", issue.getReportedAt());
-                    issueMap.put("latitude", issue.getLatitude());
-                    issueMap.put("longitude", issue.getLongitude());
-                    return issueMap;
-                })
-                .collect(Collectors.toList());
+    public List<RoadIssuePointResponse> getIssuesForMap() {
+        return roadIssuesMapService.getAllRoadIssuePoints();
     }
 
     @PutMapping("/issues/{id}")
@@ -116,7 +104,7 @@ public class RoadIssueController {
         existing.setSurfaceM2(updated.getSurfaceM2());
         existing.setBudget(updated.getBudget());
         existing.setStatusId(updated.getStatusId());
-        existing.setNiveau(updated.getNiveau()); // ✅ Mise à jour du niveau
+        existing.setNiveau(updated.getNiveau());
         existing.setUpdatedAt(LocalDateTime.now());
 
         RoadIssue saved = roadIssueRepository.save(existing);
@@ -159,7 +147,6 @@ public class RoadIssueController {
             @PathVariable String issueId,
             @PathVariable String filename) {
         try {
-            // Chemin: ../photos/{issueId}/{filename}
             Path filePath = Paths.get("../photos")
                     .resolve(issueId)
                     .resolve(filename)
