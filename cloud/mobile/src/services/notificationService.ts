@@ -1,143 +1,134 @@
-import { PushNotifications } from '@capacitor/push-notifications';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Preferences } from '@capacitor/preferences';
-import { doc, setDoc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
+import { Capacitor } from '@capacitor/core';
+import { doc, setDoc, onSnapshot, collection, query, where, Timestamp, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
-
-// Interface pour le token FCM
-interface UserNotificationToken {
-  userId: string;
-  token: string;
-  platform: string;
-  updatedAt: Date;
-}
-
-// Interface pour les préférences de notification
-interface NotificationPreferences {
-  statusChanges: boolean;
-  newComments: boolean;
-  nearbyIssues: boolean;
-}
 
 class NotificationService {
   private unsubscribeListeners: (() => void)[] = [];
   private isInitialized = false;
+  private statusCache: Map<string, string> = new Map();
 
-  // Initialiser les notifications push
+  // Initialiser les notifications
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    
+
     try {
-      // Demander permission pour les notifications locales d'abord
-      const localPermStatus = await LocalNotifications.requestPermissions();
-      console.log('📱 Permission notifications locales:', localPermStatus.display);
-      
-      // Essayer les push notifications (peut échouer sur web)
-      try {
-        const permStatus = await PushNotifications.requestPermissions();
-        
-        if (permStatus.receive === 'granted') {
-          await PushNotifications.register();
-          this.setupPushListeners();
-          console.log('✅ Push notifications initialisées');
-        } else {
-          console.warn('⚠️ Permission push refusée, utilisation des notifications locales uniquement');
-        }
-      } catch (pushError) {
-        console.warn('⚠️ Push notifications non disponibles (normal sur web):', pushError);
+      console.log('🔔 Initialisation du service de notifications...');
+      console.log('📱 Plateforme:', Capacitor.getPlatform());
+
+      // Demander les permissions pour les notifications locales
+      const permStatus = await LocalNotifications.requestPermissions();
+      console.log('📱 Permission notifications:', permStatus.display);
+
+      if (permStatus.display === 'granted') {
+        // Configurer le listener pour les notifications cliquées
+        await this.setupNotificationListeners();
+        this.isInitialized = true;
+        console.log('✅ Service de notifications initialisé');
+      } else {
+        console.warn('⚠️ Permission de notification refusée');
       }
-      
-      this.isInitialized = true;
-      console.log('✅ Service de notifications initialisé');
-      
+
     } catch (error) {
       console.error('❌ Erreur initialisation notifications:', error);
     }
   }
 
-  // Configurer les listeners push
-  private setupPushListeners(): void {
-    PushNotifications.addListener('registration', async (token) => {
-      console.log('📱 Token FCM reçu:', token.value);
-      await this.saveTokenToFirestore(token.value);
+  // Configurer les listeners de notifications
+  private async setupNotificationListeners(): Promise<void> {
+    // Quand une notification est reçue (app en premier plan)
+    await LocalNotifications.addListener('localNotificationReceived', (notification) => {
+      console.log('📬 Notification reçue:', notification);
     });
 
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('❌ Erreur enregistrement push:', error);
-    });
-
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('📬 Notification push reçue:', notification);
-      this.showLocalNotification(notification.title || 'Notification', notification.body || '');
-    });
-
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    // Quand l'utilisateur clique sur une notification
+    await LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
       console.log('👆 Action notification:', action);
-      this.handleNotificationAction(action);
+      const data = action.notification.extra;
+      
+      if (data?.issueId) {
+        // Naviguer vers le signalement (à adapter selon votre routing)
+        console.log('📍 Navigation vers signalement:', data.issueId);
+      }
     });
   }
 
-  // Sauvegarder le token FCM dans Firestore
-  private async saveTokenToFirestore(token: string): Promise<void> {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
-    const tokenData = {
-      userId: currentUser.uid,
-      token: token,
-      platform: this.getPlatform(),
-      updatedAt: Timestamp.now()
-    };
-
-    await setDoc(doc(db, 'user_tokens', currentUser.uid), tokenData);
-    console.log('✅ Token sauvegardé dans Firestore');
-  }
-
-  private getPlatform(): string {
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('android')) return 'android';
-    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'ios';
-    return 'web';
-  }
-
-  private handleNotificationAction(action: any): void {
-    const data = action.notification.data;
-    if (data?.issueId) {
-      window.location.href = `/issue/${data.issueId}`;
+  // Sauvegarder une valeur dans le cache persistant
+  private async setStoredStatus(key: string, value: string): Promise<void> {
+    try {
+      await Preferences.set({ key, value });
+    } catch {
+      localStorage.setItem(key, value);
     }
   }
 
-  // Utiliser Capacitor Preferences au lieu de localStorage
+  // Récupérer une valeur du cache persistant
   private async getStoredStatus(key: string): Promise<string | null> {
     try {
       const { value } = await Preferences.get({ key });
       return value;
     } catch {
-      // Fallback sur localStorage pour le web
       return localStorage.getItem(key);
     }
   }
 
-  private async setStoredStatus(key: string, value: string): Promise<void> {
+  // Initialiser le cache des statuts
+  private async initializeStatusCache(userId: string): Promise<void> {
+    console.log('📦 Initialisation du cache des statuts...');
+
     try {
-      await Preferences.set({ key, value });
-    } catch {
-      // Fallback sur localStorage pour le web
-      localStorage.setItem(key, value);
+      // Charger depuis 'signals'
+      const signalsQuery = query(
+        collection(db, 'signals'),
+        where('reportedBy', '==', userId)
+      );
+      const signalsSnapshot = await getDocs(signalsQuery);
+
+      signalsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const status = (data.statusId?.toString() || data.status || '1').toString();
+        const cacheKey = `issue_status_signals_${doc.id}`;
+        this.statusCache.set(cacheKey, status);
+        this.setStoredStatus(cacheKey, status);
+      });
+
+      // Charger depuis 'road_issues'
+      const roadIssuesQuery = query(
+        collection(db, 'road_issues'),
+        where('reportedBy', '==', userId)
+      );
+      const roadIssuesSnapshot = await getDocs(roadIssuesQuery);
+
+      roadIssuesSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const status = (data.statusId?.toString() || data.status || '1').toString();
+        const cacheKey = `issue_status_road_issues_${doc.id}`;
+        this.statusCache.set(cacheKey, status);
+        this.setStoredStatus(cacheKey, status);
+      });
+
+      console.log(`✅ Cache initialisé avec ${this.statusCache.size} signalements`);
+
+    } catch (error) {
+      console.error('❌ Erreur initialisation cache:', error);
     }
   }
 
-  // Écouter les changements de statut des signalements de l'utilisateur
+  // Écouter les changements de statut des signalements
   async startListeningToMyIssues(): Promise<void> {
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      console.warn('⚠️ Utilisateur non connecté, impossible d\'écouter les signalements');
+      console.warn('⚠️ Utilisateur non connecté');
       return;
     }
 
-    console.log('👂 Début de l\'écoute des signalements pour:', currentUser.uid);
+    console.log('👂 Début écoute des signalements pour:', currentUser.uid);
 
-    // Écouter les signalements dans 'signals'
+    // Initialiser le cache
+    await this.initializeStatusCache(currentUser.uid);
+
+    // Écouter 'signals'
     const signalsQuery = query(
       collection(db, 'signals'),
       where('reportedBy', '==', currentUser.uid)
@@ -154,7 +145,7 @@ class NotificationService {
       console.error('❌ Erreur écoute signals:', error);
     });
 
-    // Écouter les signalements dans 'road_issues'
+    // Écouter 'road_issues'
     const roadIssuesQuery = query(
       collection(db, 'road_issues'),
       where('reportedBy', '==', currentUser.uid)
@@ -175,53 +166,41 @@ class NotificationService {
     console.log('✅ Écoute des signalements activée');
   }
 
-  // Vérifier et notifier le changement de statut
+  // Vérifier si le statut a changé
   private async checkStatusChange(
     issueId: string,
     newData: any,
     collectionName: string
   ): Promise<void> {
     const cacheKey = `issue_status_${collectionName}_${issueId}`;
-    const previousStatus = await this.getStoredStatus(cacheKey);
+
+    // Récupérer l'ancien statut
+    let previousStatus = this.statusCache.get(cacheKey);
+    if (!previousStatus) {
+      previousStatus = await this.getStoredStatus(cacheKey);
+    }
+
     const currentStatus = (newData.statusId?.toString() || newData.status || '').toString();
 
-    console.log(`🔍 Vérification statut ${issueId}: ancien=${previousStatus}, nouveau=${currentStatus}`);
+    console.log(`🔍 Vérification ${issueId}:`);
+    console.log(`   - Ancien: ${previousStatus || 'AUCUN'}`);
+    console.log(`   - Nouveau: ${currentStatus}`);
 
+    // Si le statut a changé, envoyer une notification
     if (previousStatus && previousStatus !== currentStatus && currentStatus) {
-      console.log(`🔔 Changement détecté pour ${issueId}!`);
-      await this.sendLocalNotification(newData, previousStatus, currentStatus);
+      console.log(`🔔 CHANGEMENT DÉTECTÉ !`);
+      await this.sendStatusChangeNotification(newData, previousStatus, currentStatus);
     }
 
     // Mettre à jour le cache
     if (currentStatus) {
+      this.statusCache.set(cacheKey, currentStatus);
       await this.setStoredStatus(cacheKey, currentStatus);
     }
   }
 
-  // Afficher une notification locale
-  private async showLocalNotification(title: string, body: string, data?: any): Promise<void> {
-    try {
-      await LocalNotifications.schedule({
-        notifications: [
-          {
-            id: Date.now(),
-            title: title,
-            body: body,
-            extra: data,
-            smallIcon: 'ic_notification',
-            largeIcon: 'ic_notification',
-            sound: 'default'
-          }
-        ]
-      });
-      console.log('✅ Notification locale affichée:', title);
-    } catch (error) {
-      console.error('❌ Erreur notification locale:', error);
-    }
-  }
-
-  // Envoyer une notification locale pour changement de statut
-  private async sendLocalNotification(
+  // Envoyer une notification de changement de statut
+  private async sendStatusChangeNotification(
     issueData: any,
     oldStatus: string,
     newStatus: string
@@ -230,26 +209,56 @@ class NotificationService {
       '1': 'Signalé',
       '2': 'En cours',
       '3': 'Résolu',
-      '4': 'Rejeté',
-      'signale': 'Signalé',
-      'en_cours': 'En cours',
-      'resolu': 'Résolu',
-      'rejete': 'Rejeté'
+      '4': 'Rejeté'
     };
 
     const oldLabel = statusLabels[oldStatus] || oldStatus;
     const newLabel = statusLabels[newStatus] || newStatus;
+    const title = issueData.title || 'Signalement';
 
-    const title = '📢 Statut mis à jour';
-    const body = `"${issueData.title || 'Signalement'}" : ${oldLabel} → ${newLabel}`;
+    // Choisir l'emoji selon le nouveau statut
+    const statusEmoji: Record<string, string> = {
+      '1': '🔔',
+      '2': '🔧',
+      '3': '✅',
+      '4': '❌'
+    };
+    const emoji = statusEmoji[newStatus] || '📢';
 
-    await this.showLocalNotification(title, body, { issueId: issueData.id });
+    try {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Date.now(),
+            title: `${emoji} Mise à jour de statut`,
+            body: `"${title}" est passé de "${oldLabel}" à "${newLabel}"`,
+            largeBody: `Votre signalement "${title}" a changé de statut.\n\nAncien statut: ${oldLabel}\nNouveau statut: ${newLabel}`,
+            summaryText: 'Mise à jour signalement',
+            extra: {
+              issueId: issueData.id,
+              oldStatus: oldStatus,
+              newStatus: newStatus
+            },
+            schedule: { at: new Date(Date.now() + 100) }, // Immédiat
+            sound: 'default',
+            smallIcon: 'ic_stat_icon_config_sample',
+            largeIcon: 'ic_launcher',
+            actionTypeId: 'OPEN_ISSUE'
+          }
+        ]
+      });
 
-    // Sauvegarder dans l'historique
-    await this.saveNotificationToHistory(issueData, oldLabel, newLabel);
+      console.log('✅ Notification envoyée !');
+
+      // Sauvegarder dans l'historique Firestore
+      await this.saveNotificationToHistory(issueData, oldLabel, newLabel);
+
+    } catch (error) {
+      console.error('❌ Erreur envoi notification:', error);
+    }
   }
 
-  // Sauvegarder la notification dans l'historique Firestore
+  // Sauvegarder dans l'historique
   private async saveNotificationToHistory(
     issueData: any,
     oldStatus: string,
@@ -274,17 +283,18 @@ class NotificationService {
         doc(db, 'notifications', `${currentUser.uid}_${Date.now()}`),
         notificationData
       );
+
       console.log('✅ Notification sauvegardée dans l\'historique');
     } catch (error) {
       console.error('❌ Erreur sauvegarde historique:', error);
     }
   }
 
-  // Arrêter les listeners
+  // Arrêter l'écoute
   stopListening(): void {
     this.unsubscribeListeners.forEach(unsubscribe => unsubscribe());
     this.unsubscribeListeners = [];
-    console.log('🛑 Écoute des signalements arrêtée');
+    console.log('🛑 Écoute arrêtée');
   }
 }
 

@@ -4,8 +4,10 @@
       <ion-toolbar>
         <ion-title>Carte des signalements</ion-title>
         <ion-buttons slot="end">
-          <!-- Ajouter le composant NotificationBell -->
-          <NotificationBell />
+          <!-- Bouton de test (à supprimer après) -->
+          <ion-button @click="testNotification" color="warning">
+            Test Notif
+          </ion-button>
           <ion-button @click="showStatsModal = true" color="secondary">
             <ion-icon :icon="statsChartOutline" slot="start"></ion-icon>
             Stats
@@ -412,6 +414,7 @@ import {
 } from 'ionicons/icons';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
+import { LocalNotifications } from '@capacitor/local-notifications'; // ✅ AJOUTER CET IMPORT
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
@@ -1570,6 +1573,33 @@ const submitIssue = async () => {
     error.value = e.message || 'Erreur lors de la création du signalement';
   } finally {
     submitting.value = false;
+  }
+};
+
+// Fonction de test (à supprimer après)
+const testNotification = async () => {
+  try {
+    const permStatus = await LocalNotifications.requestPermissions();
+    console.log('📱 Permission:', permStatus.display);
+    
+    if (permStatus.display === 'granted') {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: Date.now(),
+            title: '🔔 Test Notification',
+            body: 'Les notifications fonctionnent correctement !',
+            schedule: { at: new Date(Date.now() + 1000) }
+          }
+        ]
+      });
+      successMessage.value = 'Notification de test envoyée !';
+    } else {
+      error.value = 'Permission de notification refusée';
+    }
+  } catch (e: any) {
+    console.error('Erreur test notification:', e);
+    error.value = e.message;
   }
 };
 

@@ -5,17 +5,14 @@ const config: CapacitorConfig = {
   appName: 'photo-gallery',
   webDir: 'dist',
   plugins: {
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
-    },
     LocalNotifications: {
       smallIcon: "ic_stat_icon_config_sample",
       iconColor: "#488AFF",
       sound: "beep.wav"
+    },
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
     }
-  },
-  android: {
-    allowMixedContent: true
   }
 };
 
