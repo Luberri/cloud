@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
 
   # Container PostgreSQL/PostGIS pour la base de données unifiée (manager + visiteur)
@@ -31,39 +29,34 @@ services:
     ports:
       - "8081:8080"
 
+  # Backend Spring Boot
+  backend:
+    image: visiteur-backend:latest
+    build: ./backend
+    container_name: spring_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8082:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cloud_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+  # Frontend React
+  frontend:
+    image: visiteur-frontend:latest
+    build: ./frontend
+    container_name: react_frontend
+    restart: always
+    depends_on:
+      - backend
+      - tileserver
+    ports:
+      - "80:80"
+
 volumes:
   postgres_data:
-
-
-# version: "3.9"
-
-# services:
-#   postgres:
-#     image: postgres:15
-#     container_name: postgres_db
-#     restart: always
-#     environment:
-#       POSTGRES_DB: demo_db
-#       POSTGRES_USER: demo_user
-#       POSTGRES_PASSWORD: demo_pass
-#     ports:
-#       - "5433:5432"
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-
-#   springboot:
-#     build: .
-#     container_name: spring_app
-#     depends_on:
-#       - postgres
-#     ports:
-#       - "8080:8080"
-#     volumes:
-#       - .:/app
-#     environment:
-#       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/demo_db
-#       SPRING_DATASOURCE_USERNAME: demo_user
-#       SPRING_DATASOURCE_PASSWORD: demo_pass
-
-# volumes:
-#   postgres_data:

@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { getJson, putJson } from "../api/client";
 import "./IssuesPage.css";
 
+interface IssueImage {
+  id: string;
+  storagePath: string;
+  downloadUrl: string;
+  createdAt: string;
+}
+
 interface RoadIssue {
   id: string;
   title: string;
@@ -9,13 +16,31 @@ interface RoadIssue {
   surfaceM2: number | null;
   budget: number | null;
   statusId: number | null;
+  niveau: number | null; // ✅ Nouveau champ
   status?: { label: string };
   reportedAt: string;
+  images?: IssueImage[];
 }
 
 interface IssuesPageProps {
   onNavigate: (page: string) => void;
 }
+
+// ✅ Fonction pour obtenir la couleur du niveau
+const getNiveauColor = (niveau: number | null): string => {
+  if (!niveau) return "#999";
+  if (niveau <= 3) return "#27ae60"; // Vert - Faible
+  if (niveau <= 6) return "#f39c12"; // Orange - Moyen
+  return "#e74c3c"; // Rouge - Élevé
+};
+
+// ✅ Fonction pour obtenir le label du niveau
+const getNiveauLabel = (niveau: number | null): string => {
+  if (!niveau) return "Non défini";
+  if (niveau <= 3) return "Faible";
+  if (niveau <= 6) return "Moyen";
+  return "Critique";
+};
 
 export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [issues, setIssues] = useState<RoadIssue[]>([]);
@@ -24,6 +49,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [statusFilter, setStatusFilter] = useState<number | null>(null);
 
   const [editingIssue, setEditingIssue] = useState<RoadIssue | null>(null);
+  const [selectedIssueImages, setSelectedIssueImages] = useState<IssueImage[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -31,19 +57,20 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
     surfaceM2: "",
     budget: "",
     statusId: "",
+    niveau: "", // ✅ Nouveau champ
   });
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
-    getJson<RoadIssue[]>("/issues")
+    getJson<RoadIssue[]>("/api/issues")
       .then(setIssues)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  const startEdit = (issue: RoadIssue) => {
+  const startEdit = async (issue: RoadIssue) => {
     setEditingIssue(issue);
     setForm({
       title: issue.title || "",
@@ -51,8 +78,18 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
       surfaceM2: issue.surfaceM2?.toString() ?? "",
       budget: issue.budget?.toString() ?? "",
       statusId: issue.statusId?.toString() ?? "",
+      niveau: issue.niveau?.toString() ?? "1", // ✅ Niveau
     });
     setFormError(null);
+
+    // Charger les images
+    try {
+      const images = await getJson<IssueImage[]>(`/api/issues/${issue.id}/images`);
+      setSelectedIssueImages(images);
+    } catch (err) {
+      console.error("Erreur lors du chargement des images:", err);
+      setSelectedIssueImages([]);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -74,15 +111,17 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
         surfaceM2: form.surfaceM2 === "" ? null : Number(form.surfaceM2),
         budget: form.budget === "" ? null : Number(form.budget),
         statusId: form.statusId === "" ? null : Number(form.statusId),
+        niveau: form.niveau === "" ? 1 : Number(form.niveau), // ✅ Niveau
       };
 
-      const updated = await putJson<RoadIssue>(`/issues/${editingIssue.id}`, payload);
+      const updated = await putJson<RoadIssue>(`/api/issues/${editingIssue.id}`, payload);
 
       setIssues((prev) =>
         prev.map((i) => (i.id === updated.id ? updated : i))
       );
 
       setEditingIssue(null);
+      setSelectedIssueImages([]);
     } catch (err: any) {
       setFormError(err.message);
     } finally {
@@ -90,9 +129,16 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
     }
   };
 
+  // ✅ Fonction pour construire l'URL de l'image
+  const getImageUrl = (img: IssueImage): string => {
+    if (img.downloadUrl) {
+      return `http://localhost:8082${img.downloadUrl}`;
+    }
+    return `http://localhost:8082/api/photos/${img.storagePath}`;
+  };
+
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
-  if (!issues.length) return <p>Aucun signalement.</p>;
 
   const filteredIssues = statusFilter === null 
     ? issues 
@@ -101,87 +147,103 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   return (
     <div className="issues-page">
       <div style={{ marginBottom: "1rem" }}>
-        <button
-          className="btn"
-          onClick={() => onNavigate('home')}
-        >
+        <button className="btn" onClick={() => onNavigate('home')}>
           Retour à l'accueil
         </button>
-        <button
-          className="btn"
-          onClick={() => onNavigate('statistics')}
-        >
+        <button className="btn" onClick={() => onNavigate('statistics')}>
           Voir les statistiques
         </button>
       </div>
 
       <h1>Signalements routiers</h1>
 
-      <div className="filter-container">
-        <button
-          className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
-          onClick={() => setStatusFilter(null)}
-        >
-          Tous ({issues.length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 1 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(1)}
-        >
-          Nouveau ({issues.filter(i => i.statusId === 1).length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 2 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(2)}
-        >
-          En cours ({issues.filter(i => i.statusId === 2).length})
-        </button>
-        <button
-          className={`filter-btn ${statusFilter === 3 ? 'active' : ''}`}
-          onClick={() => setStatusFilter(3)}
-        >
-          Terminé ({issues.filter(i => i.statusId === 3).length})
-        </button>
-      </div>
+      {!issues.length ? (
+        <p>Aucun signalement pour le moment.</p>
+      ) : (
+        <>
+          <div className="filter-container">
+            <button
+              className={`filter-btn ${statusFilter === null ? 'active' : ''}`}
+              onClick={() => setStatusFilter(null)}
+            >
+              Tous ({issues.length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 1 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(1)}
+            >
+              Nouveau ({issues.filter(i => i.statusId === 1).length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 2 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(2)}
+            >
+              En cours ({issues.filter(i => i.statusId === 2).length})
+            </button>
+            <button
+              className={`filter-btn ${statusFilter === 3 ? 'active' : ''}`}
+              onClick={() => setStatusFilter(3)}
+            >
+              Terminé ({issues.filter(i => i.statusId === 3).length})
+            </button>
+          </div>
 
-      <table className="issues-table">
-        <thead>
-          <tr>
-            <th>Titre</th>
-            <th>Description</th>
-            <th>Surface</th>
-            <th>Budget</th>
-            <th>Avancement</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredIssues.map((i) => (
-            <tr key={i.id}>
-              <td>{i.title}</td>
-              <td>{i.description}</td>
-              <td>{i.surfaceM2}</td>
-              <td>{i.budget}</td>
-              <td>
-                <div className="progress-bar-container">
-                  <div
-                    className="progress-bar-fill"
-                    style={{ width: `${i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%` }}
-                  />
-                </div>
-                <span className="progress-label">{i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%</span>
-              </td>
-              <td>{i.reportedAt}</td>
-              <td>
-                <button className="small-btn" onClick={() => startEdit(i)}>
-                  Modifier
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <table className="issues-table">
+            <thead>
+              <tr>
+                <th>Titre</th>
+                <th>Description</th>
+                <th>Surface</th>
+                <th>Budget</th>
+                <th>Niveau</th> {/* ✅ Nouvelle colonne */}
+                <th>Avancement</th>
+                <th>Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredIssues.map((i) => (
+                <tr key={i.id}>
+                  <td>{i.title}</td>
+                  <td>{i.description}</td>
+                  <td>{i.surfaceM2}</td>
+                  <td>{i.budget}</td>
+                  {/* ✅ Affichage du niveau avec couleur */}
+                  <td>
+                    <span 
+                      className="niveau-badge"
+                      style={{ 
+                        backgroundColor: getNiveauColor(i.niveau),
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      {i.niveau || 1}/10 - {getNiveauLabel(i.niveau)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="progress-bar-container">
+                      <div
+                        className="progress-bar-fill"
+                        style={{ width: `${i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%` }}
+                      />
+                    </div>
+                    <span className="progress-label">{i.statusId === 3 ? 100 : i.statusId === 2 ? 50 : 0}%</span>
+                  </td>
+                  <td>{i.reportedAt}</td>
+                  <td>
+                    <button className="small-btn" onClick={() => startEdit(i)}>
+                      Modifier
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       {editingIssue && (
         <div className="form-wrapper">
@@ -225,6 +287,36 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                 onChange={handleChange}
               />
 
+              {/* ✅ Nouveau champ Niveau */}
+              <label>Niveau de réparation (1-10)</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <input
+                  type="range"
+                  name="niveau"
+                  min="1"
+                  max="10"
+                  value={form.niveau || "1"}
+                  onChange={handleChange}
+                  style={{ flex: 1 }}
+                />
+                <span 
+                  style={{ 
+                    backgroundColor: getNiveauColor(Number(form.niveau) || 1),
+                    color: "white",
+                    padding: "4px 12px",
+                    borderRadius: "4px",
+                    fontWeight: "bold",
+                    minWidth: "80px",
+                    textAlign: "center"
+                  }}
+                >
+                  {form.niveau || 1}/10
+                </span>
+              </div>
+              <small style={{ color: "#666" }}>
+                1-3: Faible | 4-6: Moyen | 7-10: Critique
+              </small>
+
               <label>Statut</label>
               <select
                 name="statusId"
@@ -237,6 +329,31 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                 <option value="3">Terminé</option>
               </select>
 
+              {selectedIssueImages.length > 0 && (
+                <div>
+                  <label>Photos du signalement ({selectedIssueImages.length})</label>
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
+                    {selectedIssueImages.map((img) => (
+                      <img
+                        key={img.id}
+                        src={getImageUrl(img)}
+                        alt="Signalement"
+                        style={{
+                          width: "150px",
+                          height: "150px",
+                          objectFit: "cover",
+                          borderRadius: "8px",
+                          border: "1px solid #ddd"
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button type="submit" disabled={saving}>
                 {saving ? "Enregistrement..." : "Enregistrer les modifications"}
               </button>
@@ -244,7 +361,10 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
               <button
                 type="button"
                 className="cancel-btn"
-                onClick={() => setEditingIssue(null)}
+                onClick={() => {
+                  setEditingIssue(null);
+                  setSelectedIssueImages([]);
+                }}
               >
                 Annuler
               </button>

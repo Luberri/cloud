@@ -1,6 +1,7 @@
 package com.demo.cloud.controller;
 
 import com.demo.cloud.service.ImageSyncService;
+import com.demo.cloud.service.PrixForfaitaireSyncService;
 import com.demo.cloud.service.RoadIssueService;
 import com.demo.cloud.service.UserSyncService;
 import org.springframework.http.ResponseEntity;
@@ -17,13 +18,16 @@ public class SyncController {
     private final RoadIssueService roadIssueService;
     private final UserSyncService userSyncService;
     private final ImageSyncService imageSyncService;
+    private final PrixForfaitaireSyncService prixSyncService;
 
     public SyncController(RoadIssueService roadIssueService,
                          UserSyncService userSyncService,
-                         ImageSyncService imageSyncService) {
+                         ImageSyncService imageSyncService,
+                         PrixForfaitaireSyncService prixSyncService) {
         this.roadIssueService = roadIssueService;
         this.userSyncService = userSyncService;
         this.imageSyncService = imageSyncService;
+        this.prixSyncService = prixSyncService;
     }
 
     @PostMapping("/all")
@@ -33,7 +37,7 @@ public class SyncController {
         // 1) PUSH local -> Firebase (Auth)
         int usersPushed = userSyncService.pushLocalUsersToFirebaseAuth();
 
-        // 2) PUSH local -> Firebase (Firestore) + vérification status_id
+        // 2) PUSH local -> Firebase (Firestore) + vérification status_id et niveau
         int roadIssuesSynced = roadIssueService.syncWithFirebase();
 
         // 3) PULL Firebase -> local (utilisateurs)
@@ -42,9 +46,13 @@ public class SyncController {
         // 4) Synchronisation bidirectionnelle des images
         Map<String, Integer> imagesSyncResult = imageSyncService.syncImages();
 
+        // 5) ✅ Synchronisation du prix forfaitaire
+        String prixSyncResult = prixSyncService.syncBidirectional();
+
         result.put("usersPushed", usersPushed);
         result.put("roadIssuesSynced", roadIssuesSynced);
         result.put("usersPulled", usersPulled);
+        result.put("prixForfaitaireSync", prixSyncResult);
         result.putAll(imagesSyncResult); // imagesPulled et imagesPushed
 
         return ResponseEntity.ok(result);
@@ -82,6 +90,49 @@ public class SyncController {
         Map<String, Integer> result = new HashMap<>();
         int pushed = imageSyncService.pushImagesToFirebase();
         result.put("imagesPushed", pushed);
+        return ResponseEntity.ok(result);
+    }
+
+    // ✅ NOUVEAUX ENDPOINTS pour prix forfaitaire
+    @PostMapping("/prix-forfaitaire/push")
+    public ResponseEntity<Map<String, Object>> pushPrixForfaitaire() {
+        Map<String, Object> result = new HashMap<>();
+        boolean success = prixSyncService.pushToFirebase();
+        result.put("success", success);
+        result.put("message", success ? "Prix forfaitaire envoyé vers Firebase" : "Échec du PUSH");
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/prix-forfaitaire/pull")
+    public ResponseEntity<Map<String, Object>> pullPrixForfaitaire() {
+        Map<String, Object> result = new HashMap<>();
+        boolean success = prixSyncService.pullFromFirebase();
+        result.put("success", success);
+        result.put("message", success ? "Prix forfaitaire récupéré depuis Firebase" : "Échec du PULL");
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/prix-forfaitaire")
+    public ResponseEntity<Map<String, Object>> syncPrixForfaitaire() {
+        Map<String, Object> result = new HashMap<>();
+        String syncResult = prixSyncService.syncBidirectional();
+        result.put("result", syncResult);
+        return ResponseEntity.ok(result);
+    }
+
+    // ✅ PULL complet depuis Firebase (road_issues + prix_forfaitaire)
+    @PostMapping("/pull-all")
+    public ResponseEntity<Map<String, Object>> pullAll() {
+        Map<String, Object> result = new HashMap<>();
+        
+        int roadIssuesPulled = roadIssueService.pullFromFirebase();
+        boolean prixPulled = prixSyncService.pullFromFirebase();
+        int imagesPulled = imageSyncService.pullImagesFromFirebase();
+        
+        result.put("roadIssuesPulled", roadIssuesPulled);
+        result.put("prixForfaitairePulled", prixPulled);
+        result.put("imagesPulled", imagesPulled);
+        
         return ResponseEntity.ok(result);
     }
 }

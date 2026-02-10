@@ -28,11 +28,21 @@ public class RoadIssuesMapService {
                 ST_Y(r.location::geometry) AS latitude,
                 ST_X(r.location::geometry) AS longitude,
                 r.surface_m2,
-                r.budget,
+                COALESCE(
+                    (SELECT prix FROM prix_forfaitaire ORDER BY updated_at DESC LIMIT 1), 
+                    50000
+                ) * COALESCE(r.niveau, 1) * COALESCE(r.surface_m2, 0) AS budget,
                 s.code AS status_code,
                 s.label AS status_label,
                 r.reported_at,
-                c.name AS company_name
+                c.name AS company_name,
+                r.niveau,
+                CASE 
+                    WHEN r.niveau BETWEEN 1 AND 3 THEN 'Faible'
+                    WHEN r.niveau BETWEEN 4 AND 6 THEN 'Moyen'
+                    WHEN r.niveau BETWEEN 7 AND 10 THEN 'Critique'
+                    ELSE 'Non défini'
+                END AS niveau_label
             FROM road_issues r
             LEFT JOIN road_issue_status s ON s.id = r.status_id
             LEFT JOIN companies c ON c.id = r.company_id
@@ -51,7 +61,9 @@ public class RoadIssuesMapService {
                 (String) row[7],
                 (String) row[8],
                 toLocalDateTime(row[9]),
-                (String) row[10]
+                (String) row[10],
+                toInteger(row[11]),
+                (String) row[12]
             ))
             .collect(Collectors.toList());
     }
@@ -74,5 +86,12 @@ public class RoadIssuesMapService {
         if (value instanceof Timestamp ts) return ts.toLocalDateTime();
         if (value instanceof LocalDateTime ldt) return ldt;
         return null;
+    }
+
+    private static Integer toInteger(Object value) {
+        if (value == null) return 1;
+        if (value instanceof Integer i) return i;
+        if (value instanceof Number n) return n.intValue();
+        return Integer.parseInt(value.toString());
     }
 }

@@ -9,8 +9,9 @@ import AddUserPage from './pages/AddUserPage'
 import IssuesPage from './pages/IssuesPage'
 import StatisticsPage from './pages/StatisticsPage'
 import './styles.css'
+import PrixForfaitairePage from './pages/PrixForfaitairePage'
 
-type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary' | 'statistics'
+type PageType = 'visitor' | 'map' | 'login' | 'home' | 'blocked-users' | 'all-users' | 'add-user' | 'issues' | 'summary' | 'statistics' | 'prix-forfaitaire'
 
 export default function App() {
   // Check URL path for initial page
@@ -84,6 +85,10 @@ export default function App() {
       return <VisitorSummaryPage />
     }
 
+    if (currentPage === 'prix-forfaitaire') {
+      return <PrixForfaitairePage onNavigate={handleNavigate} />
+    }
+
     // Default
     return <VisitorSummaryPage />
   }
@@ -95,7 +100,7 @@ export default function App() {
           className={`nav-btn ${currentPage === 'visitor' || currentPage === 'summary' ? 'active' : ''}`}
           onClick={() => setCurrentPage('visitor')}
         >
-          Résumé
+          Tableau de bord
         </button>
         <button
           className={`nav-btn ${currentPage === 'map' ? 'active' : ''}`}

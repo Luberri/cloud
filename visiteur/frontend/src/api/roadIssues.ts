@@ -1,3 +1,13 @@
+export interface IssueImage {
+  id: string // UUID en string
+  storagePath: string
+  downloadUrl: string
+  createdAt: string
+  thumbnailUrl?: string
+  fileSizeBytes?: number
+  mimeType?: string
+}
+
 export interface RoadIssuePoint {
   id: string
   title: string
@@ -6,44 +16,35 @@ export interface RoadIssuePoint {
   longitude: number
   surfaceM2: number
   budget: number
+  statusId: number
   statusCode: string
   statusLabel: string
-  reportedAt: string | null
-  companyName: string | null
+  companyId?: number
+  companyName?: string
+  reportedAt: string
+  niveau: number
+  niveauLabel: string
 }
 
-export interface IssueImage {
-  id: string
-  roadIssueId: string
-  downloadUrl: string
-  thumbnailUrl: string | null
-  fileSizeBytes: number | null
-  mimeType: string
-  createdAt: string
-}
-
-const API_BASE = 'http://localhost:8082'
+const API_BASE_URL = 'http://localhost:8082/api'
 
 export async function fetchRoadIssues(): Promise<RoadIssuePoint[]> {
-  const response = await fetch(`${API_BASE}/public/road-issues`)
+  const response = await fetch(`${API_BASE_URL}/map/issues`)
   if (!response.ok) {
-    throw new Error('Erreur lors du chargement des problèmes routiers')
+    throw new Error('Erreur lors du chargement des signalements')
   }
   return response.json()
 }
 
 export async function fetchIssueImages(issueId: string): Promise<IssueImage[]> {
-  const response = await fetch(`${API_BASE}/public/road-issues/${issueId}/images`)
-  if (!response.ok) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/issues/${issueId}/images`)
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`)
+    }
+    return response.json()
+  } catch (error) {
+    console.error('Erreur détaillée:', error)
     throw new Error('Erreur lors du chargement des photos')
   }
-  return response.json()
-}
-
-export async function fetchIssueImageCount(issueId: string): Promise<number> {
-  const response = await fetch(`${API_BASE}/public/road-issues/${issueId}/images/count`)
-  if (!response.ok) {
-    return 0
-  }
-  return response.json()
 }

@@ -1,167 +1,503 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchStatistics, type StatisticsResponse } from '../api/statistics'
+import { getJson } from '../api/client'
 import './StatisticsPage.css'
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('fr-FR').format(value)
+interface RoadIssue {
+  id: string;
+  title: string;
+  statusId: number;
+  niveau: number;
+  surfaceM2: number;
+  budget: number;
+  companyId: number | null;
+  reportedAt: string;
+  updatedAt: string;
 }
 
-function formatDays(value: number | null) {
-  if (value === null || value === undefined) return 'N/A'
-  return `${formatNumber(value)} jour${value > 1 ? 's' : ''}`
-}
-
-function formatMoney(value: number) {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'MGA', maximumFractionDigits: 0 }).format(value)
+interface Company {
+  id: number;
+  name: string;
 }
 
 interface StatisticsPageProps {
   onNavigate: (page: string) => void
 }
 
-export default function StatisticsPage({ onNavigate }: StatisticsPageProps) {
-  const [data, setData] = useState<StatisticsResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('fr-FR').format(value)
+}
 
-  const apiBaseUrl = useMemo(() => {
-    return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8082'
-  }, [])
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('fr-FR', { 
+    style: 'currency', 
+    currency: 'MGA', 
+    maximumFractionDigits: 0 
+  }).format(value)
+}
+
+function calculateDaysBetween(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime())
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+}
+
+export default function StatisticsPage({ onNavigate }: StatisticsPageProps) {
+  const [issues, setIssues] = useState<RoadIssue[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Filtres
+  const [selectedCompany, setSelectedCompany] = useState<number | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('all')
+  const [selectedNiveau, setSelectedNiveau] = useState<string>('all')
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
+    Promise.all([
+      getJson<RoadIssue[]>('/api/issues'),
+      getJson<Company[]>('/api/companies').catch(() => [])
+    ])
+      .then(([issuesData, companiesData]) => {
+        setIssues(issuesData)
+        setCompanies(companiesData)
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
 
-    fetchStatistics(apiBaseUrl)
-      .then((json) => {
-        if (cancelled) return
-        setData(json)
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Erreur inconnue')
-      })
-      .finally(() => {
-        if (cancelled) return
-        setLoading(false)
-      })
+  // Filtrer les données
+  const filteredIssues = useMemo(() => {
+    let filtered = [...issues]
 
-    return () => { cancelled = true }
-  }, [apiBaseUrl])
+    if (selectedCompany !== null) {
+      filtered = filtered.filter(i => i.companyId === selectedCompany)
+    }
+
+    if (selectedPeriod !== 'all') {
+      const now = new Date()
+      const days = parseInt(selectedPeriod)
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+      filtered = filtered.filter(i => new Date(i.reportedAt) >= cutoff)
+    }
+
+    if (selectedNiveau !== 'all') {
+      if (selectedNiveau === 'faible') {
+        filtered = filtered.filter(i => i.niveau >= 1 && i.niveau <= 3)
+      } else if (selectedNiveau === 'moyen') {
+        filtered = filtered.filter(i => i.niveau >= 4 && i.niveau <= 6)
+      } else if (selectedNiveau === 'critique') {
+        filtered = filtered.filter(i => i.niveau >= 7 && i.niveau <= 10)
+      }
+    }
+
+    return filtered
+  }, [issues, selectedCompany, selectedPeriod, selectedNiveau])
+
+  // Calculs statistiques
+  const stats = useMemo(() => {
+    const total = filteredIssues.length
+    const nouveau = filteredIssues.filter(i => i.statusId === 1).length
+    const enCours = filteredIssues.filter(i => i.statusId === 2).length
+    const termine = filteredIssues.filter(i => i.statusId === 3).length
+
+    const totalSurface = filteredIssues.reduce((sum, i) => sum + (i.surfaceM2 || 0), 0)
+    const totalBudget = filteredIssues.reduce((sum, i) => sum + (i.budget || 0), 0)
+
+    // Par niveau
+    const niveauFaible = filteredIssues.filter(i => i.niveau >= 1 && i.niveau <= 3).length
+    const niveauMoyen = filteredIssues.filter(i => i.niveau >= 4 && i.niveau <= 6).length
+    const niveauCritique = filteredIssues.filter(i => i.niveau >= 7 && i.niveau <= 10).length
+
+    const budgetFaible = filteredIssues.filter(i => i.niveau >= 1 && i.niveau <= 3).reduce((s, i) => s + (i.budget || 0), 0)
+    const budgetMoyen = filteredIssues.filter(i => i.niveau >= 4 && i.niveau <= 6).reduce((s, i) => s + (i.budget || 0), 0)
+    const budgetCritique = filteredIssues.filter(i => i.niveau >= 7 && i.niveau <= 10).reduce((s, i) => s + (i.budget || 0), 0)
+
+    const progress = total > 0 ? Math.round((termine / total) * 100) : 0
+
+    // Par entreprise
+    const byCompany = companies.map(company => {
+      const companyIssues = filteredIssues.filter(i => i.companyId === company.id)
+      return {
+        id: company.id,
+        name: company.name,
+        count: companyIssues.length,
+        budget: companyIssues.reduce((s, i) => s + (i.budget || 0), 0)
+      }
+    }).filter(c => c.count > 0)
+
+    // Calcul des délais de traitement
+    const terminedIssues = filteredIssues.filter(i => i.statusId === 3)
+    const delaysByStatus = terminedIssues.map(issue => ({
+      id: issue.id,
+      title: issue.title,
+      niveau: issue.niveau,
+      delay: calculateDaysBetween(issue.reportedAt, issue.updatedAt),
+      reportedAt: issue.reportedAt,
+      updatedAt: issue.updatedAt
+    }))
+
+    const avgDelay = delaysByStatus.length > 0 
+      ? Math.round(delaysByStatus.reduce((sum, d) => sum + d.delay, 0) / delaysByStatus.length)
+      : 0
+
+    const delayByNiveau = [
+      {
+        niveau: 'Faible (1-3)',
+        delays: terminedIssues.filter(i => i.niveau >= 1 && i.niveau <= 3).map(i => calculateDaysBetween(i.reportedAt, i.updatedAt)),
+        count: terminedIssues.filter(i => i.niveau >= 1 && i.niveau <= 3).length
+      },
+      {
+        niveau: 'Moyen (4-6)',
+        delays: terminedIssues.filter(i => i.niveau >= 4 && i.niveau <= 6).map(i => calculateDaysBetween(i.reportedAt, i.updatedAt)),
+        count: terminedIssues.filter(i => i.niveau >= 4 && i.niveau <= 6).length
+      },
+      {
+        niveau: 'Critique (7-10)',
+        delays: terminedIssues.filter(i => i.niveau >= 7 && i.niveau <= 10).map(i => calculateDaysBetween(i.reportedAt, i.updatedAt)),
+        count: terminedIssues.filter(i => i.niveau >= 7 && i.niveau <= 10).length
+      }
+    ].map(item => ({
+      ...item,
+      avgDelay: item.delays.length > 0 
+        ? Math.round(item.delays.reduce((s, d) => s + d, 0) / item.delays.length)
+        : 0
+    }))
+
+    return {
+      total,
+      nouveau,
+      enCours,
+      termine,
+      totalSurface,
+      totalBudget,
+      niveauFaible,
+      niveauMoyen,
+      niveauCritique,
+      budgetFaible,
+      budgetMoyen,
+      budgetCritique,
+      progress,
+      byCompany,
+      avgDelay,
+      delayByNiveau,
+      recentCompleted: delaysByStatus.slice(-5).reverse()
+    }
+  }, [filteredIssues, companies])
+
+  if (loading) return <div className="statistics-page"><div className="state">Chargement...</div></div>
+  if (error) return <div className="statistics-page"><div className="state error">Erreur : {error}</div></div>
 
   return (
     <div className="statistics-page">
-      <button className="btn back-btn" onClick={() => onNavigate('home')}>
-        ← Retour à l'accueil
+      <button className="btn-back" onClick={() => onNavigate('home')}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Retour
       </button>
 
-      <h1>Statistiques des travaux</h1>
-      <p className="subtitle">Avancement et délais de traitement des signalements routiers</p>
+      <header className="stats-header">
+        <h1>Tableau de Bord</h1>
+        <p>Analyse des signalements routiers</p>
+      </header>
 
-      {loading && <div className="state">Chargement…</div>}
-      {error && <div className="state error">Erreur : {error}</div>}
+      {/* FILTRES */}
+      <section className="filters-section">
+        <div className="filter-group">
+          <label>Entreprise</label>
+          <select value={selectedCompany ?? ''} onChange={e => setSelectedCompany(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">Toutes</option>
+            {companies.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
 
-      {data && !loading && !error && (
-        <>
-          {/* Tableau Avancement */}
-          <section className="stats-section">
-            <h2>Avancement des signalements</h2>
-            <table className="stats-table">
-              <thead>
-                <tr>
-                  <th>Statut</th>
-                  <th>Avancement</th>
-                  <th>Nombre</th>
-                  <th>Pourcentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><span className="badge badge-new">Nouveau</span></td>
-                  <td>0%</td>
-                  <td>{data.countNew}</td>
-                  <td>{data.totalSignalements > 0 ? formatNumber(Math.round(data.countNew * 100 / data.totalSignalements)) : 0}%</td>
-                </tr>
-                <tr>
-                  <td><span className="badge badge-progress">En cours</span></td>
-                  <td>50%</td>
-                  <td>{data.countInProgress}</td>
-                  <td>{data.totalSignalements > 0 ? formatNumber(Math.round(data.countInProgress * 100 / data.totalSignalements)) : 0}%</td>
-                </tr>
-                <tr>
-                  <td><span className="badge badge-done">Terminé</span></td>
-                  <td>100%</td>
-                  <td>{data.countDone}</td>
-                  <td>{data.totalSignalements > 0 ? formatNumber(Math.round(data.countDone * 100 / data.totalSignalements)) : 0}%</td>
-                </tr>
-                <tr className="total-row">
-                  <td><strong>Total</strong></td>
-                  <td><strong>{formatNumber(data.avgProgressPercent)}%</strong></td>
-                  <td><strong>{data.totalSignalements}</strong></td>
-                  <td><strong>100%</strong></td>
-                </tr>
-              </tbody>
-            </table>
+        <div className="filter-group">
+          <label>Période</label>
+          <select value={selectedPeriod} onChange={e => setSelectedPeriod(e.target.value)}>
+            <option value="all">Toutes</option>
+            <option value="7">7 jours</option>
+            <option value="30">30 jours</option>
+            <option value="90">90 jours</option>
+          </select>
+        </div>
 
-            <div className="progress-bar-container">
-              <div className="progress-label">Avancement global : {formatNumber(data.avgProgressPercent)}%</div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, data.avgProgressPercent))}%` }} />
+        <div className="filter-group">
+          <label>Niveau</label>
+          <select value={selectedNiveau} onChange={e => setSelectedNiveau(e.target.value)}>
+            <option value="all">Tous</option>
+            <option value="faible">Faible</option>
+            <option value="moyen">Moyen</option>
+            <option value="critique">Critique</option>
+          </select>
+        </div>
+
+        <button className="btn-reset" onClick={() => {
+          setSelectedCompany(null)
+          setSelectedPeriod('all')
+          setSelectedNiveau('all')
+        }}>
+          Réinitialiser
+        </button>
+      </section>
+
+      {/* CARDS PRINCIPALES */}
+      <section className="cards-grid">
+        <div className="stat-card">
+          <div className="card-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">Total</div>
+            <div className="card-value">{formatNumber(stats.total)}</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="card-icon success">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">Terminés</div>
+            <div className="card-value">{formatNumber(stats.termine)}</div>
+            <div className="card-sub">{stats.total > 0 ? Math.round((stats.termine / stats.total) * 100) : 0}%</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="card-icon warning">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">En Cours</div>
+            <div className="card-value">{formatNumber(stats.enCours)}</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="card-icon danger">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">Nouveaux</div>
+            <div className="card-value">{formatNumber(stats.nouveau)}</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="card-icon info">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">Surface Totale</div>
+            <div className="card-value-small">{formatNumber(Math.round(stats.totalSurface))} m²</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="card-icon money">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div className="card-content">
+            <div className="card-label">Budget Total</div>
+            <div className="card-value-small">{formatMoney(stats.totalBudget)}</div>
+          </div>
+        </div>
+      </section>
+
+      {/* DÉLAI DE TRAITEMENT */}
+      <section className="chart-section">
+        <h2>Délai de Traitement Moyen</h2>
+        <div className="delay-summary">
+          <div className="delay-card">
+            <div className="delay-value">{stats.avgDelay}</div>
+            <div className="delay-label">jours en moyenne</div>
+          </div>
+        </div>
+
+        <div className="delay-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Niveau de Gravité</th>
+                <th>Nb Terminés</th>
+                <th>Délai Moyen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.delayByNiveau.map((item, idx) => (
+                <tr key={idx}>
+                  <td>{item.niveau}</td>
+                  <td>{item.count}</td>
+                  <td>
+                    {item.count > 0 ? (
+                      <span className="delay-badge">{item.avgDelay} jours</span>
+                    ) : (
+                      <span className="no-data">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {stats.recentCompleted.length > 0 && (
+          <>
+            <h3>Travaux Récemment Terminés</h3>
+            <div className="recent-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Titre</th>
+                    <th>Niveau</th>
+                    <th>Date Signalement</th>
+                    <th>Date Fin</th>
+                    <th>Délai</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.recentCompleted.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.title}</td>
+                      <td>
+                        <span className={`niveau-badge niveau-${
+                          item.niveau <= 3 ? 'low' : item.niveau <= 6 ? 'medium' : 'high'
+                        }`}>
+                          {item.niveau}
+                        </span>
+                      </td>
+                      <td>{new Date(item.reportedAt).toLocaleDateString('fr-FR')}</td>
+                      <td>{new Date(item.updatedAt).toLocaleDateString('fr-FR')}</td>
+                      <td><span className="delay-badge">{item.delay} j</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* GRAPHIQUE NIVEAU */}
+      <section className="chart-section">
+        <h2>Répartition par Niveau</h2>
+        <div className="bar-chart">
+          <div className="bar-item">
+            <div className="bar-label">Faible</div>
+            <div className="bar-wrapper">
+              <div 
+                className="bar-fill bar-green" 
+                style={{ width: stats.total > 0 ? `${(stats.niveauFaible / stats.total) * 100}%` : '0%' }}
+              >
+                <span className="bar-value">{stats.niveauFaible}</span>
               </div>
             </div>
-          </section>
-
-          {/* Tableau Délais */}
-          <section className="stats-section">
-            <h2>Délais de traitement</h2>
-            <table className="stats-table">
-              <thead>
-                <tr>
-                  <th>Indicateur</th>
-                  <th>Étape</th>
-                  <th>Délai moyen</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Prise en charge</td>
-                  <td>Nouveau → En cours</td>
-                  <td>{formatDays(data.avgStartDelayDays)}</td>
-                </tr>
-                <tr>
-                  <td>Traitement</td>
-                  <td>En cours → Terminé</td>
-                  <td>{formatDays(data.avgTreatmentDays)}</td>
-                </tr>
-                <tr className="total-row">
-                  <td><strong>Total</strong></td>
-                  <td><strong>Nouveau → Terminé</strong></td>
-                  <td><strong>{formatDays(data.avgCompletionDays)}</strong></td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          {/* Résumé financier */}
-          <section className="stats-section">
-            <h2>Résumé</h2>
-            <div className="metrics-grid">
-              <div className="metric-card">
-                <div className="metric-label">Surface totale</div>
-                <div className="metric-value">{formatNumber(data.totalSurfaceM2)} m²</div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-label">Budget total</div>
-                <div className="metric-value">{formatMoney(data.totalBudget)}</div>
-              </div>
-              <div className="metric-card">
-                <div className="metric-label">Signalements</div>
-                <div className="metric-value">{data.totalSignalements}</div>
+          </div>
+          <div className="bar-item">
+            <div className="bar-label">Moyen</div>
+            <div className="bar-wrapper">
+              <div 
+                className="bar-fill bar-orange" 
+                style={{ width: stats.total > 0 ? `${(stats.niveauMoyen / stats.total) * 100}%` : '0%' }}
+              >
+                <span className="bar-value">{stats.niveauMoyen}</span>
               </div>
             </div>
-          </section>
-        </>
+          </div>
+          <div className="bar-item">
+            <div className="bar-label">Critique</div>
+            <div className="bar-wrapper">
+              <div 
+                className="bar-fill bar-red" 
+                style={{ width: stats.total > 0 ? `${(stats.niveauCritique / stats.total) * 100}%` : '0%' }}
+              >
+                <span className="bar-value">{stats.niveauCritique}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* BUDGET PAR NIVEAU */}
+      <section className="chart-section">
+        <h2>Budget par Niveau</h2>
+        <div className="budget-bars">
+          <div className="budget-item">
+            <div className="budget-header">
+              <span className="budget-label">Faible</span>
+              <span className="budget-amount">{formatMoney(stats.budgetFaible)}</span>
+            </div>
+            <div className="budget-bar">
+              <div 
+                className="budget-fill bg-green" 
+                style={{ width: stats.totalBudget > 0 ? `${(stats.budgetFaible / stats.totalBudget) * 100}%` : '0%' }}
+              ></div>
+            </div>
+          </div>
+          <div className="budget-item">
+            <div className="budget-header">
+              <span className="budget-label">Moyen</span>
+              <span className="budget-amount">{formatMoney(stats.budgetMoyen)}</span>
+            </div>
+            <div className="budget-bar">
+              <div 
+                className="budget-fill bg-orange" 
+                style={{ width: stats.totalBudget > 0 ? `${(stats.budgetMoyen / stats.totalBudget) * 100}%` : '0%' }}
+              ></div>
+            </div>
+          </div>
+          <div className="budget-item">
+            <div className="budget-header">
+              <span className="budget-label">Critique</span>
+              <span className="budget-amount">{formatMoney(stats.budgetCritique)}</span>
+            </div>
+            <div className="budget-bar">
+              <div 
+                className="budget-fill bg-red" 
+                style={{ width: stats.totalBudget > 0 ? `${(stats.budgetCritique / stats.totalBudget) * 100}%` : '0%' }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PAR ENTREPRISE */}
+      {stats.byCompany.length > 0 && (
+        <section className="chart-section">
+          <h2>Par Entreprise</h2>
+          <div className="company-stats">
+            {stats.byCompany.map(company => (
+              <div key={company.id} className="company-item">
+                <div className="company-header">
+                  <span className="company-name">{company.name}</span>
+                  <span className="company-count">{company.count}</span>
+                </div>
+                <div className="company-budget">{formatMoney(company.budget)}</div>
+                <div className="company-bar">
+                  <div 
+                    className="company-fill" 
+                    style={{ width: stats.total > 0 ? `${(company.count / stats.total) * 100}%` : '0%' }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )
