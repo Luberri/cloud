@@ -7,9 +7,11 @@ import com.demo.cloud.entity.IssueImage;
 import com.demo.cloud.repository.RoadIssueRepository;
 import com.demo.cloud.repository.RoadIssueStatusHistoryRepository;
 import com.demo.cloud.repository.IssueImageRepository;
+import com.demo.cloud.service.PrixForfaitaireService;
 import com.demo.cloud.service.RoadIssueService;
 import com.demo.cloud.service.RoadIssueStatusHistoryService;
 import com.demo.cloud.service.RoadIssuesMapService;
+import java.math.BigDecimal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,7 @@ public class RoadIssueController {
     private final RoadIssueService roadIssueService;
     private final RoadIssueStatusHistoryRepository statusHistoryRepository;
     private final RoadIssuesMapService roadIssuesMapService;
+    private final PrixForfaitaireService prixForfaitaireService;
 
     @Autowired
     private IssueImageRepository issueImageRepository;
@@ -50,18 +53,31 @@ public class RoadIssueController {
             RoadIssueStatusHistoryService historyService,
             RoadIssueService roadIssueService,
             RoadIssueStatusHistoryRepository statusHistoryRepository,
-            RoadIssuesMapService roadIssuesMapService) {
+            RoadIssuesMapService roadIssuesMapService,
+            PrixForfaitaireService prixForfaitaireService) {
         this.roadIssueRepository = roadIssueRepository;
         this.historyService = historyService;
         this.roadIssueService = roadIssueService;
         this.statusHistoryRepository = statusHistoryRepository;
         this.roadIssuesMapService = roadIssuesMapService;
+        this.prixForfaitaireService = prixForfaitaireService;
+    }
+
+    private void calculerBudgets(List<RoadIssue> issues) {
+        BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
+        for (RoadIssue issue : issues) {
+            BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
+            int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
+            issue.setBudget(prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
+        }
     }
 
     @GetMapping("/issues")
     @Operation(summary = "Lister les signalements routiers")
     public List<RoadIssue> getAllIssues() {
-        return roadIssueRepository.findAll();
+        List<RoadIssue> issues = roadIssueRepository.findAll();
+        calculerBudgets(issues);
+        return issues;
     }
 
     @GetMapping("/map/issues")
@@ -78,20 +94,21 @@ public class RoadIssueController {
             @RequestParam(required = false) UUID changedBy) {
 
         RoadIssue existing = roadIssueRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
+                .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
 
         boolean statusChanged = updated.getStatusId() != null
-            && !updated.getStatusId().equals(existing.getStatusId());
+                && !updated.getStatusId().equals(existing.getStatusId());
 
         existing.setTitle(updated.getTitle());
         existing.setDescription(updated.getDescription());
         existing.setSurfaceM2(updated.getSurfaceM2());
         existing.setBudget(updated.getBudget());
         existing.setStatusId(updated.getStatusId());
-        existing.setNiveau(updated.getNiveau()); // ✅ Mise à jour du niveau
+        existing.setNiveau(updated.getNiveau());
         existing.setUpdatedAt(LocalDateTime.now());
 
         RoadIssue saved = roadIssueRepository.save(existing);
+        calculerBudgets(List.of(saved));
 
         if (statusChanged) {
             RoadIssueStatusHistory history = new RoadIssueStatusHistory();
@@ -130,14 +147,13 @@ public class RoadIssueController {
             @PathVariable String issueId,
             @PathVariable String filename) {
         try {
-            // Chemin: ../photos/{issueId}/{filename}
             Path filePath = Paths.get("../photos")
-                .resolve(issueId)
-                .resolve(filename)
-                .normalize();
-            
+                    .resolve(issueId)
+                    .resolve(filename)
+                    .normalize();
+
             System.out.println("Tentative de chargement de l'image: " + filePath.toAbsolutePath());
-            
+
             Resource resource = new UrlResource(filePath.toUri());
 
             if (resource.exists() && resource.isReadable()) {
@@ -147,9 +163,9 @@ public class RoadIssueController {
                 }
 
                 return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .body(resource);
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                        .body(resource);
             } else {
                 System.err.println("Image non trouvée: " + filePath.toAbsolutePath());
                 return ResponseEntity.notFound().build();
