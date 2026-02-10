@@ -275,14 +275,39 @@
         </ion-item>
         
         <ion-item>
-          <ion-label position="floating">Surface (m²)</ion-label>
-          <ion-input v-model.number="newIssue.surface" type="number" placeholder="Ex: 10"></ion-input>
+          <ion-label position="floating">Surface (m²) *</ion-label>
+          <ion-input v-model.number="newIssue.surface" type="number" placeholder="Ex: 10" @ionInput="calculateBudget"></ion-input>
         </ion-item>
         
+        <!-- Nouveau champ: Niveau de gravité -->
         <ion-item>
-          <ion-label position="floating">Budget estimé (MGA)</ion-label>
-          <ion-input v-model.number="newIssue.budget" type="number" placeholder="Ex: 500000"></ion-input>
+          <ion-label>Niveau de gravité *</ion-label>
+          <ion-select v-model="newIssue.niveau" interface="popover" @ionChange="calculateBudget">
+            <ion-select-option v-for="n in 10" :key="n" :value="n">
+              {{ n }} - {{ getNiveauLabel(n) }}
+            </ion-select-option>
+          </ion-select>
         </ion-item>
+        
+        <!-- Affichage du prix forfaitaire -->
+        <div class="prix-info" v-if="prixForfaitaire">
+          <ion-icon :icon="informationCircleOutline"></ion-icon>
+          <span>Prix forfaitaire: {{ formatBudget(prixForfaitaire) }} / m²</span>
+        </div>
+        
+        <!-- Affichage du budget estimé -->
+        <div class="budget-estimate" v-if="newIssue.surface > 0 && newIssue.niveau > 0">
+          <div class="budget-label">
+            <ion-icon :icon="calculatorOutline"></ion-icon>
+            <span>Budget estimé</span>
+          </div>
+          <div class="budget-formula">
+            {{ formatBudget(prixForfaitaire) }} × {{ newIssue.niveau }} × {{ newIssue.surface }} m²
+          </div>
+          <div class="budget-value">
+            {{ formatBudget(calculatedBudget) }}
+          </div>
+        </div>
         
         <!-- Section Photos -->
         <div class="photos-section">
@@ -334,7 +359,7 @@
           expand="block" 
           class="ion-margin-top" 
           @click="submitIssue" 
-          :disabled="submitting || !newIssue.title || !newIssue.description"
+          :disabled="submitting || !newIssue.title || !newIssue.description || !newIssue.surface || !newIssue.niveau"
         >
           <ion-spinner v-if="submitting" name="crescent"></ion-spinner>
           <span v-else>Créer le signalement</span>
@@ -410,14 +435,15 @@ import {
   checkmarkCircleOutline, flashOutline, trashOutline, leafOutline,
   chevronDownOutline, chevronUpOutline, checkboxOutline, squareOutline,
   statsChartOutline, navigateOutline, cameraOutline, imagesOutline, 
-  closeCircleOutline, expandOutline
+  closeCircleOutline, expandOutline, informationCircleOutline, calculatorOutline
 } from 'ionicons/icons';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
-import { LocalNotifications } from '@capacitor/local-notifications'; // ✅ AJOUTER CET IMPORT
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -469,6 +495,7 @@ interface Signal {
   longitude: number;
   surface: number;
   budget: number;
+  niveau: number; // Ajout du niveau
   status: string;
   statusId: number;
   typeId: number;
@@ -521,9 +548,71 @@ const newIssue = reactive({
   title: '',
   description: '',
   surface: 0,
-  budget: 0,
+  niveau: 1, // Niveau par défaut
   status: 'signale'
 });
+
+// Budget calculé automatiquement
+const calculatedBudget = computed(() => {
+  return prixForfaitaire.value * newIssue.niveau * newIssue.surface;
+});
+
+// Prix forfaitaire
+const prixForfaitaire = ref<number>(50000); // Valeur par défaut
+const loadingPrix = ref(false);
+
+// Charger le prix forfaitaire depuis Firebase
+const loadPrixForfaitaire = async () => {
+  loadingPrix.value = true;
+  try {
+    // Essayer de charger depuis la collection prix_forfaitaire
+    const prixDocRef = doc(db, 'prix_forfaitaire', 'config');
+    const prixDoc = await getDoc(prixDocRef);
+    
+    if (prixDoc.exists()) {
+      const data = prixDoc.data();
+      prixForfaitaire.value = data.prix_par_m2 || 50000;
+      console.log('💰 Prix forfaitaire chargé:', prixForfaitaire.value);
+    } else {
+      // Créer le document avec la valeur par défaut
+      await setDoc(prixDocRef, {
+        prix_par_m2: 50000,
+        updated_at: Timestamp.now()
+      });
+      console.log('💰 Prix forfaitaire créé avec valeur par défaut: 50000');
+    }
+  } catch (error) {
+    console.error('❌ Erreur chargement prix forfaitaire:', error);
+    // Utiliser la valeur par défaut en cas d'erreur
+    prixForfaitaire.value = 50000;
+  } finally {
+    loadingPrix.value = false;
+  }
+};
+
+// Obtenir le label du niveau
+const getNiveauLabel = (niveau: number): string => {
+  const labels: Record<number, string> = {
+    1: 'Très faible',
+    2: 'Faible',
+    3: 'Faible+',
+    4: 'Modéré',
+    5: 'Moyen',
+    6: 'Moyen+',
+    7: 'Élevé',
+    8: 'Élevé+',
+    9: 'Très élevé',
+    10: 'Critique'
+  };
+  return labels[niveau] || 'Inconnu';
+};
+
+// Fonction pour calculer le budget (appelée lors des changements)
+const calculateBudget = () => {
+  // Le budget est calculé via computed, cette fonction peut être utilisée
+  // pour des effets secondaires si nécessaire
+  console.log(`📊 Calcul budget: ${prixForfaitaire.value} × ${newIssue.niveau} × ${newIssue.surface} = ${calculatedBudget.value}`);
+};
 
 // Fonction pour parser le budget (gère string et number)
 const parseBudget = (budget: any): number => {
@@ -777,6 +866,14 @@ const createPopupContent = (signal: Signal): string => {
           font-size: 11px;
           font-weight: 600;
         ">${type.label}</span>
+        <span style="
+          background-color: ${getNiveauColor(signal.niveau)};
+          color: white;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+        ">Niveau ${signal.niveau}</span>
         ${hasPhotos ? `
           <span style="
             background-color: #2196f3;
@@ -785,12 +882,8 @@ const createPopupContent = (signal: Signal): string => {
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 4px;
           ">
-            <ion-icon name="images-outline" style="font-size: 12px;"></ion-icon>
-            ${photoCount}
+            📷 ${photoCount}
           </span>
         ` : ''}
       </div>
@@ -801,6 +894,10 @@ const createPopupContent = (signal: Signal): string => {
         <tr>
           <td><strong>Surface:</strong></td>
           <td>${signal.surface} m²</td>
+        </tr>
+        <tr>
+          <td><strong>Niveau:</strong></td>
+          <td>${signal.niveau}/10 (${getNiveauLabel(signal.niveau)})</td>
         </tr>
         <tr>
           <td><strong>Budget:</strong></td>
@@ -829,65 +926,33 @@ const createPopupContent = (signal: Signal): string => {
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: transform 0.2s, box-shadow 0.2s;
           "
-          onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(33, 150, 243, 0.4)';"
-          onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
         >
-          <ion-icon name="images-outline" style="font-size: 16px;"></ion-icon>
-          Voir les photos (${photoCount})
+          📷 Voir les photos (${photoCount})
         </button>
-      ` : `
-        <div style="
-          margin-top: 12px;
-          padding: 10px;
-          background: #f5f5f5;
-          border-radius: 8px;
-          text-align: center;
-          color: #999;
-          font-size: 12px;
-        ">
-          <ion-icon name="images-outline" style="font-size: 16px; margin-bottom: 4px; display: block;"></ion-icon>
-          Aucune photo
-        </div>
-      `}
+      ` : ''}
     </div>
   `;
 };
 
-// Créer le contenu du tooltip (survol) avec indicateur photos
+// Créer le contenu du tooltip (info rapide au survol)
 const createTooltipContent = (signal: Signal): string => {
   const type = issueTypes.find(t => t.id === signal.typeId) || issueTypes[0];
-  const hasPhotos = signal.photos && signal.photos.length > 0;
-  const photoCount = signal.photos?.length || 0;
-  
   return `
-    <div style="min-width: 150px;">
+    <div style="text-align: center;">
       <strong>${signal.title}</strong><br>
-      <small style="color: ${type.color};">${type.label}</small><br>
-      <small>Statut: ${getStatusText(signal.statusId)}</small>
-      ${hasPhotos ? `
-        <br>
-        <small style="
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          margin-top: 4px;
-          padding: 2px 6px;
-          background: #2196f3;
-          color: white;
-          border-radius: 4px;
-        ">
-          <ion-icon name="images-outline" style="font-size: 11px;"></ion-icon>
-          ${photoCount} photo${photoCount > 1 ? 's' : ''}
-        </small>
-      ` : ''}
+      <span style="color: ${type.color};">${type.label}</span> | Niveau ${signal.niveau}
     </div>
   `;
+};
+
+// Fonction pour obtenir la couleur selon le niveau
+const getNiveauColor = (niveau: number): string => {
+  if (niveau <= 2) return '#4caf50'; // Vert
+  if (niveau <= 4) return '#8bc34a'; // Vert clair
+  if (niveau <= 6) return '#ff9800'; // Orange
+  if (niveau <= 8) return '#f44336'; // Rouge
+  return '#9c27b0'; // Violet (critique)
 };
 
 // Charger les signalements depuis Firestore (les deux collections)
@@ -904,7 +969,6 @@ const loadSignals = async () => {
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
       
-      // Convertir base64 en URLs data si présent
       let photos: string[] = [];
       if (data.photosBase64 && Array.isArray(data.photosBase64)) {
         photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
@@ -920,6 +984,7 @@ const loadSignals = async () => {
         longitude: data.longitude || 0,
         surface: parseSurface(data.surface),
         budget: parseBudget(data.budget),
+        niveau: data.niveau || 1, // Ajout du niveau
         status,
         statusId,
         typeId,
@@ -942,7 +1007,6 @@ const loadSignals = async () => {
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
       
-      // Convertir base64 en URLs data si présent
       let photos: string[] = [];
       if (data.photosBase64 && Array.isArray(data.photosBase64)) {
         photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
@@ -958,6 +1022,7 @@ const loadSignals = async () => {
         longitude: data.longitude || 0,
         surface: parseSurface(data.surfaceM2 || data.surface),
         budget: parseBudget(data.budget),
+        niveau: data.niveau || 1, // Ajout du niveau
         status,
         statusId,
         typeId,
@@ -1112,7 +1177,7 @@ const closeModal = () => {
   newIssue.title = '';
   newIssue.description = '';
   newIssue.surface = 0;
-  newIssue.budget = 0;
+  newIssue.niveau = 1; // Réinitialiser le niveau
   newIssue.status = 'signale';
   capturedPhotos.value = [];
 };
@@ -1459,7 +1524,16 @@ const submitIssue = async () => {
     return;
   }
   
-  // Limiter le nombre de photos à 3 pour éviter de dépasser 1 MB
+  if (!newIssue.surface || newIssue.surface <= 0) {
+    error.value = 'Veuillez entrer une surface valide';
+    return;
+  }
+  
+  if (!newIssue.niveau || newIssue.niveau < 1 || newIssue.niveau > 10) {
+    error.value = 'Veuillez sélectionner un niveau de gravité (1-10)';
+    return;
+  }
+  
   if (capturedPhotos.value.length > 3) {
     error.value = 'Maximum 3 photos par signalement';
     return;
@@ -1474,8 +1548,12 @@ const submitIssue = async () => {
     const statusId = statusMapping[newIssue.status as keyof typeof statusMapping]?.id || 1;
     const issueId = generateUUID();
     
+    // Calculer le budget automatiquement
+    const budget = prixForfaitaire.value * newIssue.niveau * newIssue.surface;
+    
     console.log(`🆕 Création du signalement ${issueId}`);
-    console.log(`📸 Nombre de photos à convertir: ${capturedPhotos.value.length}`);
+    console.log(`📊 Budget calculé: ${prixForfaitaire.value} × ${newIssue.niveau} × ${newIssue.surface} = ${budget}`);
+    console.log(`📸 Nombre de photos: ${capturedPhotos.value.length}`);
     
     // Convertir les photos en base64
     const photosBase64: string[] = [];
@@ -1507,29 +1585,31 @@ const submitIssue = async () => {
     
     const now = Timestamp.now();
     
-    // Créer le signalement avec les images en base64
+    // Créer le signalement avec le niveau et le budget calculé
     const issueData = {
       id: issueId,
       title: newIssue.title,
       description: newIssue.description,
       latitude: selectedLocation.value.lat,
       longitude: selectedLocation.value.lng,
-      surfaceM2: (newIssue.surface || 0).toFixed(2),
-      budget: (newIssue.budget || 0).toFixed(2),
+      surfaceM2: parseFloat(newIssue.surface.toFixed(2)),
+      niveau: newIssue.niveau, // Ajout du niveau
+      budget: parseFloat(budget.toFixed(2)), // Budget calculé
+      prixForfaitaireUtilise: prixForfaitaire.value, // Stocker le prix utilisé pour référence
       statusId: statusId,
       typeId: type.id,
       companyId: null,
-      photosBase64: photosBase64, // ✅ Stocker en base64 au lieu d'URLs
+      photosBase64: photosBase64,
       reportedBy: reportedBy,
       reportedAt: now,
       updatedAt: now
     };
     
-    // Vérifier la taille du document (approximatif)
+    // Vérifier la taille du document
     const estimatedSize = JSON.stringify(issueData).length;
-    console.log(`📦 Taille estimée du document: ${(estimatedSize / 1024).toFixed(2)} KB`);
+    console.log(`📦 Taille estimée: ${(estimatedSize / 1024).toFixed(2)} KB`);
     
-    if (estimatedSize > 900 * 1024) { // 900 KB pour laisser une marge
+    if (estimatedSize > 900 * 1024) {
       throw new Error('Document trop volumineux. Réduisez le nombre de photos.');
     }
     
@@ -1537,14 +1617,12 @@ const submitIssue = async () => {
     
     const docRef = await addDoc(collection(db, 'road_issues'), issueData);
     
-    console.log('✅ Signalement créé avec ID Firestore:', docRef.id);
+    console.log('✅ Signalement créé avec ID:', docRef.id);
     
-    // Message de succès
-    let message = `Signalement créé avec ${photosBase64.length} photo(s)`;
+    let message = `Signalement créé ! Budget estimé: ${formatBudget(budget)}`;
     if (failedPhotos.length > 0) {
       message += ` (${failedPhotos.length} photo(s) échouée(s))`;
     }
-    message += ' !';
     
     successMessage.value = message;
     
@@ -1568,8 +1646,7 @@ const submitIssue = async () => {
     addMarkersToMap();
     
   } catch (e: any) {
-    console.error('❌ Erreur lors de la création du signalement:', e);
-    console.error('Stack trace:', e.stack);
+    console.error('❌ Erreur:', e);
     error.value = e.message || 'Erreur lors de la création du signalement';
   } finally {
     submitting.value = false;
@@ -1624,6 +1701,9 @@ const testNotification = async () => {
 
 onMounted(async () => {
   setupGlobalPhotoHandler();
+  
+  // Charger le prix forfaitaire
+  await loadPrixForfaitaire();
   
   // Initialiser les notifications
   await notificationService.initialize();
@@ -1688,208 +1768,56 @@ ion-content {
 
 /* ...existing code... */
 
-/* Styles pour le modal de statistiques */
-.stats-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  color: white;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.progress-section {
-  background: #f5f5f5;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.progress-section h3 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #333;
-}
-
-.progress-bar-container {
-  background: #e0e0e0;
-  border-radius: 10px;
-  height: 20px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
-  height: 100%;
-  border-radius: 10px;
-  transition: width 0.5s ease;
-}
-
-.progress-details {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 20px 0 12px 0;
-}
-
-.stats-table-container {
-  overflow-x: auto;
-  margin-bottom: 20px;
-}
-
-.stats-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.stats-table th {
-  background: #f5f5f5;
-  padding: 10px 8px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.stats-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #eee;
-}
-
-.stats-table .center {
-  text-align: center;
-}
-
-.stats-table .right {
-  text-align: right;
-}
-
-.stats-table .total-row {
-  background: #f5f5f5;
-}
-
-.stats-table .total-row td {
-  border-bottom: none;
-  border-top: 2px solid #e0e0e0;
-}
-
-.type-cell {
+/* Styles pour le prix et le budget estimé */
+.prix-info {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 12px;
+  background: #e3f2fd;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 13px;
+  color: #1565c0;
 }
 
-.type-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+.prix-info ion-icon {
+  font-size: 18px;
+}
+
+.budget-estimate {
+  background: linear-gradient(135deg, #4caf50, #2e7d32);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+  color: white;
+  text-align: center;
+}
+
+.budget-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.mini-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mini-progress-bar {
-  flex: 1;
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
-  position: relative;
-  overflow: hidden;
-}
-
-.mini-progress-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  background: #4caf50;
-  border-radius: 3px;
-}
-
-.mini-progress span {
-  font-size: 11px;
-  color: #666;
-  min-width: 35px;
-}
-
-.status-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.status-card {
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  color: white;
-}
-
-.status-card.status-1 {
-  background: linear-gradient(135deg, #ff9800, #f57c00);
-}
-
-.status-card.status-2 {
-  background: linear-gradient(135deg, #2196f3, #1976d2);
-}
-
-.status-card.status-3 {
-  background: linear-gradient(135deg, #4caf50, #388e3c);
-}
-
-.status-card.status-4 {
-  background: linear-gradient(135deg, #9e9e9e, #757575);
-}
-
-.status-count {
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.status-label {
+  gap: 8px;
   font-size: 13px;
-  margin: 4px 0;
+  opacity: 0.9;
+  margin-bottom: 8px;
 }
 
-.status-percentage {
+.budget-label ion-icon {
+  font-size: 18px;
+}
+
+.budget-formula {
   font-size: 12px;
-  opacity: 0.9;
+  opacity: 0.8;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
+.budget-value {
+  font-size: 24px;
+  font-weight: 700;
 }
 
 /* Styles existants pour la légende et le sélecteur */
@@ -2123,8 +2051,6 @@ ion-content {
   justify-content: center;
   color: white;
   font-size: 18px;
-
-
 }
 
 .selected-location {
