@@ -3,9 +3,10 @@ import { getJson, putJson } from "../api/client";
 import "./IssuesPage.css";
 
 interface IssueImage {
-  id: number;
-  imagePath: string;
-  uploadedAt: string;
+  id: string;
+  storagePath: string;
+  downloadUrl: string;
+  createdAt: string;
 }
 
 interface RoadIssue {
@@ -15,6 +16,7 @@ interface RoadIssue {
   surfaceM2: number | null;
   budget: number | null;
   statusId: number | null;
+  niveau: number | null; // ✅ Nouveau champ
   status?: { label: string };
   reportedAt: string;
   images?: IssueImage[];
@@ -23,6 +25,22 @@ interface RoadIssue {
 interface IssuesPageProps {
   onNavigate: (page: string) => void;
 }
+
+// ✅ Fonction pour obtenir la couleur du niveau
+const getNiveauColor = (niveau: number | null): string => {
+  if (!niveau) return "#999";
+  if (niveau <= 3) return "#27ae60"; // Vert - Faible
+  if (niveau <= 6) return "#f39c12"; // Orange - Moyen
+  return "#e74c3c"; // Rouge - Élevé
+};
+
+// ✅ Fonction pour obtenir le label du niveau
+const getNiveauLabel = (niveau: number | null): string => {
+  if (!niveau) return "Non défini";
+  if (niveau <= 3) return "Faible";
+  if (niveau <= 6) return "Moyen";
+  return "Critique";
+};
 
 export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   const [issues, setIssues] = useState<RoadIssue[]>([]);
@@ -39,6 +57,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
     surfaceM2: "",
     budget: "",
     statusId: "",
+    niveau: "", // ✅ Nouveau champ
   });
 
   const [saving, setSaving] = useState(false);
@@ -59,6 +78,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
       surfaceM2: issue.surfaceM2?.toString() ?? "",
       budget: issue.budget?.toString() ?? "",
       statusId: issue.statusId?.toString() ?? "",
+      niveau: issue.niveau?.toString() ?? "1", // ✅ Niveau
     });
     setFormError(null);
 
@@ -91,6 +111,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
         surfaceM2: form.surfaceM2 === "" ? null : Number(form.surfaceM2),
         budget: form.budget === "" ? null : Number(form.budget),
         statusId: form.statusId === "" ? null : Number(form.statusId),
+        niveau: form.niveau === "" ? 1 : Number(form.niveau), // ✅ Niveau
       };
 
       const updated = await putJson<RoadIssue>(`/api/issues/${editingIssue.id}`, payload);
@@ -108,6 +129,14 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
     }
   };
 
+  // ✅ Fonction pour construire l'URL de l'image
+  const getImageUrl = (img: IssueImage): string => {
+    if (img.downloadUrl) {
+      return `http://localhost:8082${img.downloadUrl}`;
+    }
+    return `http://localhost:8082/api/photos/${img.storagePath}`;
+  };
+
   if (loading) return <p>Chargement...</p>;
   if (error) return <p>Erreur : {error}</p>;
 
@@ -118,16 +147,10 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
   return (
     <div className="issues-page">
       <div style={{ marginBottom: "1rem" }}>
-        <button
-          className="btn"
-          onClick={() => onNavigate('home')}
-        >
+        <button className="btn" onClick={() => onNavigate('home')}>
           Retour à l'accueil
         </button>
-        <button
-          className="btn"
-          onClick={() => onNavigate('statistics')}
-        >
+        <button className="btn" onClick={() => onNavigate('statistics')}>
           Voir les statistiques
         </button>
       </div>
@@ -172,6 +195,7 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                 <th>Description</th>
                 <th>Surface</th>
                 <th>Budget</th>
+                <th>Niveau</th> {/* ✅ Nouvelle colonne */}
                 <th>Avancement</th>
                 <th>Date</th>
                 <th>Action</th>
@@ -184,6 +208,21 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                   <td>{i.description}</td>
                   <td>{i.surfaceM2}</td>
                   <td>{i.budget}</td>
+                  {/* ✅ Affichage du niveau avec couleur */}
+                  <td>
+                    <span 
+                      className="niveau-badge"
+                      style={{ 
+                        backgroundColor: getNiveauColor(i.niveau),
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      {i.niveau || 1}/10 - {getNiveauLabel(i.niveau)}
+                    </span>
+                  </td>
                   <td>
                     <div className="progress-bar-container">
                       <div
@@ -248,6 +287,36 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                 onChange={handleChange}
               />
 
+              {/* ✅ Nouveau champ Niveau */}
+              <label>Niveau de réparation (1-10)</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <input
+                  type="range"
+                  name="niveau"
+                  min="1"
+                  max="10"
+                  value={form.niveau || "1"}
+                  onChange={handleChange}
+                  style={{ flex: 1 }}
+                />
+                <span 
+                  style={{ 
+                    backgroundColor: getNiveauColor(Number(form.niveau) || 1),
+                    color: "white",
+                    padding: "4px 12px",
+                    borderRadius: "4px",
+                    fontWeight: "bold",
+                    minWidth: "80px",
+                    textAlign: "center"
+                  }}
+                >
+                  {form.niveau || 1}/10
+                </span>
+              </div>
+              <small style={{ color: "#666" }}>
+                1-3: Faible | 4-6: Moyen | 7-10: Critique
+              </small>
+
               <label>Statut</label>
               <select
                 name="statusId"
@@ -262,12 +331,12 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
 
               {selectedIssueImages.length > 0 && (
                 <div>
-                  <label>Photos du signalement</label>
+                  <label>Photos du signalement ({selectedIssueImages.length})</label>
                   <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
                     {selectedIssueImages.map((img) => (
                       <img
                         key={img.id}
-                        src={`http://localhost:8082/api/images/${img.imagePath}`}
+                        src={getImageUrl(img)}
                         alt="Signalement"
                         style={{
                           width: "150px",
@@ -275,6 +344,9 @@ export default function IssuesPage({ onNavigate }: IssuesPageProps) {
                           objectFit: "cover",
                           borderRadius: "8px",
                           border: "1px solid #ddd"
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
                         }}
                       />
                     ))}
