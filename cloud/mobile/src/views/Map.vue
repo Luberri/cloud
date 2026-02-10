@@ -4,6 +4,8 @@
       <ion-toolbar>
         <ion-title>Carte des signalements</ion-title>
         <ion-buttons slot="end">
+          <!-- Ajouter le composant NotificationBell -->
+          <NotificationBell />
           <ion-button @click="showStatsModal = true" color="secondary">
             <ion-icon :icon="statsChartOutline" slot="start"></ion-icon>
             Stats
@@ -416,6 +418,8 @@ import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { notificationService } from '@/services/notificationService';
+import NotificationBell from '@/components/NotificationBell.vue';
 
 // Types de signalements avec icônes et couleurs
 interface IssueType {
@@ -1572,6 +1576,10 @@ const submitIssue = async () => {
 onMounted(async () => {
   setupGlobalPhotoHandler();
   
+  // Initialiser les notifications
+  await notificationService.initialize();
+  await notificationService.startListeningToMyIssues();
+  
   await loadSignals();
   
   setTimeout(() => {
@@ -1598,6 +1606,9 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   // Cleanup global handler
   delete (window as any).openSignalPhotos;
+  
+  // Arrêter les listeners de notifications
+  notificationService.stopListening();
   
   if (map) {
     map.off('click', handleMapClick);
