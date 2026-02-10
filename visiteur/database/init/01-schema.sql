@@ -101,6 +101,23 @@ CREATE TABLE IF NOT EXISTS road_issues (
 );
 
 -- =====================
+-- IMAGES DES SIGNALEMENTS
+-- =====================
+CREATE TABLE IF NOT EXISTS issue_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+    storage_path TEXT NOT NULL,
+    download_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    file_size_bytes BIGINT,
+    mime_type VARCHAR(50) DEFAULT 'image/jpeg',
+    uploaded_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_images_road_issue ON issue_images(road_issue_id);
+
+-- =====================
 -- JOURNAL DE SYNCHRONISATION
 -- =====================
 CREATE TABLE IF NOT EXISTS sync_logs (
@@ -135,6 +152,20 @@ SELECT
     ) AS progress_percent
 FROM road_issues r
 JOIN road_issue_status s ON s.id = r.status_id;
+
+-- =====================
+-- HISTORIQUE DES CHANGEMENTS DE STATUT
+-- =====================
+CREATE TABLE IF NOT EXISTS road_issue_status_history (
+    id SERIAL PRIMARY KEY,
+    road_issue_id UUID NOT NULL REFERENCES road_issues(id) ON DELETE CASCADE,
+    status_id INT NOT NULL REFERENCES road_issue_status(id),
+    changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    changed_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_status_history_issue ON road_issue_status_history(road_issue_id);
+CREATE INDEX IF NOT EXISTS idx_status_history_status ON road_issue_status_history(status_id);
 
 -- ============================================================
 -- FIN DU SCRIPT SCHEMA

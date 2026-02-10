@@ -8,6 +8,8 @@ body {
 }
 
 .issues-page {
+  max-width: 900px;
+  margin: auto;
   padding: 40px 20px;
   background-color: #f5f5f5;
   min-height: 100vh;
@@ -48,6 +50,35 @@ body {
 
 .small-btn:hover {
   background-color: #111111;
+}
+
+/* ===== FILTER BUTTONS ===== */
+
+.filter-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 2px solid #333333;
+  background-color: #fff;
+  color: #333333;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.filter-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.filter-btn.active {
+  background-color: #333333;
+  color: #fff;
 }
 
 /* ===== TABLE ===== */
@@ -168,4 +199,30 @@ body {
 .form-container .error {
   color: #dc3545;
   margin-bottom: 15px;
+}
+
+/* ===== PROGRESS BAR ===== */
+
+.progress-bar-container {
+  width: 100%;
+  height: 10px;
+  background-color: #e0e0e0;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: #28a745;
+  border-radius: 5px;
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  color: #333;
 }

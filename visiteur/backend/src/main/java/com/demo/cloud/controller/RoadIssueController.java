@@ -1,7 +1,11 @@
 package com.demo.cloud.controller;
 
 import com.demo.cloud.entity.RoadIssue;
+import com.demo.cloud.entity.RoadIssueStatusHistory;
 import com.demo.cloud.repository.RoadIssueRepository;
+import com.demo.cloud.repository.RoadIssueStatusHistoryRepository;
+import com.demo.cloud.service.RoadIssueService;
+import com.demo.cloud.service.RoadIssueStatusHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -18,9 +22,19 @@ import java.util.UUID;
 public class RoadIssueController {
 
     private final RoadIssueRepository roadIssueRepository;
+    private final RoadIssueStatusHistoryService historyService;
+    private final RoadIssueService roadIssueService;
+    private final RoadIssueStatusHistoryRepository statusHistoryRepository;
 
-    public RoadIssueController(RoadIssueRepository roadIssueRepository) {
+    public RoadIssueController(
+            RoadIssueRepository roadIssueRepository,
+            RoadIssueStatusHistoryService historyService,
+            RoadIssueService roadIssueService,
+         RoadIssueStatusHistoryRepository statusHistoryRepository) {
         this.roadIssueRepository = roadIssueRepository;
+        this.historyService = historyService;
+        this.roadIssueService = roadIssueService;
+        this.statusHistoryRepository = statusHistoryRepository;
     }
 
     @GetMapping
@@ -31,9 +45,16 @@ public class RoadIssueController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Mettre à jour un signalement routier")
-    public ResponseEntity<RoadIssue> updateIssue(@PathVariable UUID id, @RequestBody RoadIssue updated) {
+    public ResponseEntity<RoadIssue> updateIssue(
+            @PathVariable UUID id,
+            @RequestBody RoadIssue updated,
+            @RequestParam(required = false) UUID changedBy) {
+
         RoadIssue existing = roadIssueRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Signalement introuvable"));
+
+        boolean statusChanged = updated.getStatusId() != null
+            && !updated.getStatusId().equals(existing.getStatusId());
 
         existing.setTitle(updated.getTitle());
         existing.setDescription(updated.getDescription());
@@ -43,6 +64,22 @@ public class RoadIssueController {
         existing.setUpdatedAt(LocalDateTime.now());
 
         RoadIssue saved = roadIssueRepository.save(existing);
+
+        // Enregistrer dans l'historique si le statut a changé
+        if (statusChanged) {
+            RoadIssueStatusHistory history = new RoadIssueStatusHistory();
+            history.setRoadIssueId(saved.getId());
+            history.setStatusId(saved.getStatusId());
+            history.setChangedAt(LocalDateTime.now());
+            statusHistoryRepository.save(history);
+        }
+
         return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Historique des changements de statut d'un signalement")
+    public List<RoadIssueStatusHistory> getStatusHistory(@PathVariable UUID id) {
+        return statusHistoryRepository.findByRoadIssueIdOrderByChangedAtAsc(id);
     }
 }

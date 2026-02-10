@@ -1,106 +1,162 @@
 <template>
   <ion-page>
-    <ion-header>
+    <!-- Header moderne avec effet glass -->
+    <ion-header class="modern-header">
       <ion-toolbar>
-        <ion-title>Carte des signalements</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="showStatsModal = true" color="secondary">
-            <ion-icon :icon="statsChartOutline" slot="start"></ion-icon>
-            Stats
-          </ion-button>
-          <ion-button @click="toggleSignalMode" :color="isSignalMode ? 'danger' : 'primary'">
-            <ion-icon :icon="isSignalMode ? closeOutline : addOutline" slot="start"></ion-icon>
-            {{ isSignalMode ? 'Annuler' : 'Signaler' }}
-          </ion-button>
-        </ion-buttons>
+        <div class="header-content">
+          <div class="header-title-section">
+            <div class="app-logo">
+              <ion-icon :icon="locationOutline"></ion-icon>
+            </div>
+            <div class="header-titles">
+              <h1 class="main-title">Signaleo</h1>
+              <p class="subtitle">{{ signals.length }} signalements actifs</p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <NotificationBell />
+            <button class="action-btn stats-btn" @click="showStatsModal = true">
+              <ion-icon :icon="statsChartOutline"></ion-icon>
+            </button>
+          </div>
+        </div>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
       <div id="map" ref="mapContainer"></div>
       
-      <!-- Légende des types de signalement -->
-      <div class="map-legend" :class="{ collapsed: legendCollapsed }">
-        <div class="legend-header" @click="legendCollapsed = !legendCollapsed">
-          <span>Filtres</span>
-          <ion-icon :icon="legendCollapsed ? chevronDownOutline : chevronUpOutline"></ion-icon>
+      <!-- Mini stats flottantes -->
+      <div class="floating-stats">
+        <div class="mini-stat">
+          <span class="stat-number">{{ globalStats.totalIssues }}</span>
+          <span class="stat-text">Total</span>
         </div>
-        <div class="legend-content" v-show="!legendCollapsed">
-          <!-- Filtre mes signalements -->
-          <div class="filter-section">
-            <div class="filter-toggle" @click="toggleMyIssuesOnly">
-              <ion-icon :icon="showMyIssuesOnly ? checkboxOutline : squareOutline"></ion-icon>
-              <span>Mes signalements</span>
+        <div class="mini-stat resolved">
+          <span class="stat-number">{{ globalStats.resolvedIssues }}</span>
+          <span class="stat-text">Résolus</span>
+        </div>
+        <div class="mini-stat progress">
+          <span class="stat-number">{{ globalStats.progressPercentage.toFixed(0) }}%</span>
+          <span class="stat-text">Avancement</span>
+        </div>
+      </div>
+      
+      <!-- Panneau de filtres moderne -->
+      <div class="filters-panel" :class="{ collapsed: legendCollapsed }">
+        <div class="filters-header" @click="legendCollapsed = !legendCollapsed">
+          <div class="filters-title">
+            <ion-icon :icon="filterOutline"></ion-icon>
+            <span>Filtres</span>
+          </div>
+          <div class="filters-badge" v-if="selectedFilterTypes.length < issueTypes.length">
+            {{ selectedFilterTypes.length }}/{{ issueTypes.length }}
+          </div>
+          <ion-icon :icon="legendCollapsed ? chevronDownOutline : chevronUpOutline" class="toggle-icon"></ion-icon>
+        </div>
+        
+        <div class="filters-body" v-show="!legendCollapsed">
+          <!-- Toggle mes signalements -->
+          <div class="my-issues-toggle" :class="{ active: showMyIssuesOnly }" @click="toggleMyIssuesOnly">
+            <ion-icon :icon="personOutline"></ion-icon>
+            <span>Mes signalements uniquement</span>
+            <div class="toggle-switch">
+              <div class="toggle-dot"></div>
             </div>
           </div>
           
-          <div class="filter-divider"></div>
+          <div class="filters-divider"></div>
           
-          <!-- Boutons tout sélectionner / désélectionner -->
-          <div class="filter-actions">
-            <ion-button size="small" fill="clear" @click="selectAllTypes">Tout</ion-button>
-            <ion-button size="small" fill="clear" @click="deselectAllTypes">Aucun</ion-button>
+          <!-- Actions rapides -->
+          <div class="quick-actions">
+            <button class="quick-btn" @click="selectAllTypes">
+              <ion-icon :icon="checkmarkDoneOutline"></ion-icon>
+              Tout
+            </button>
+            <button class="quick-btn" @click="deselectAllTypes">
+              <ion-icon :icon="closeOutline"></ion-icon>
+              Aucun
+            </button>
           </div>
           
-          <!-- Types de signalement -->
-          <div 
-            v-for="type in issueTypes" 
-            :key="type.id"
-            class="legend-item"
-            :class="{ inactive: !selectedFilterTypes.includes(type.id) }"
-            @click="toggleFilterType(type.id)"
-          >
-            <ion-icon 
-              :icon="selectedFilterTypes.includes(type.id) ? checkboxOutline : squareOutline" 
-              class="filter-checkbox"
-            ></ion-icon>
-            <div class="legend-icon" :style="{ backgroundColor: type.color }">
-              <ion-icon :icon="type.icon"></ion-icon>
+          <!-- Types de signalement en grille -->
+          <div class="filter-types-grid">
+            <div 
+              v-for="type in issueTypes" 
+              :key="type.id"
+              class="filter-type-chip"
+              :class="{ active: selectedFilterTypes.includes(type.id) }"
+              :style="{ '--chip-color': type.color }"
+              @click="toggleFilterType(type.id)"
+            >
+              <div class="chip-icon">
+                <span>{{ type.emoji }}</span>
+              </div>
+              <span class="chip-label">{{ type.label }}</span>
+              <span class="chip-count">{{ getCountForType(type.id) }}</span>
             </div>
-            <span class="legend-label">{{ type.label }}</span>
-            <span class="legend-count">({{ getCountForType(type.id) }})</span>
           </div>
         </div>
       </div>
       
-      <!-- Sélecteur de type de signalement -->
-      <div v-if="isSignalMode && !showModal" class="marker-selector">
-        <p class="selector-title">Choisissez le type de problème :</p>
-        
-        <!-- Bouton utiliser ma position -->
-        <div class="location-section">
-          <ion-button 
-            expand="block" 
-            fill="outline" 
-            size="small" 
+      <!-- Bouton flottant d'ajout -->
+      <div class="fab-container">
+        <button 
+          class="fab-button" 
+          :class="{ active: isSignalMode }"
+          @click="toggleSignalMode"
+        >
+          <ion-icon :icon="isSignalMode ? closeOutline : addOutline"></ion-icon>
+        </button>
+        <span class="fab-label" v-if="!isSignalMode">Signaler</span>
+      </div>
+      
+      <!-- Sélecteur de type moderne -->
+      <transition name="slide-up">
+        <div v-if="isSignalMode && !showModal" class="type-selector-panel">
+          <div class="selector-header">
+            <h2>Nouveau signalement</h2>
+            <p>Quel type de problème souhaitez-vous signaler ?</p>
+          </div>
+          
+          <!-- Bouton GPS -->
+          <button 
+            class="gps-button" 
             @click="useMyLocation" 
             :disabled="gettingLocation"
           >
-            <ion-spinner v-if="gettingLocation" name="crescent" slot="start"></ion-spinner>
-            <ion-icon v-else :icon="navigateOutline" slot="start"></ion-icon>
-            {{ gettingLocation ? 'Localisation...' : 'Utiliser ma position' }}
-          </ion-button>
-        </div>
-        
-        <div class="marker-options">
-          <div 
-            v-for="type in issueTypes" 
-            :key="type.id"
-            class="marker-option"
-            :class="{ selected: selectedIssueType?.id === type.id }"
-            @click="selectIssueType(type)"
-          >
-            <div class="marker-icon" :style="{ backgroundColor: type.color }">
-              <ion-icon :icon="type.icon"></ion-icon>
+            <ion-spinner v-if="gettingLocation" name="crescent"></ion-spinner>
+            <ion-icon v-else :icon="navigateOutline"></ion-icon>
+            <span>{{ gettingLocation ? 'Localisation...' : 'Ma position actuelle' }}</span>
+          </button>
+          
+          <!-- Grille de types -->
+          <div class="type-options-grid">
+            <div 
+              v-for="type in issueTypes" 
+              :key="type.id"
+              class="type-option-card"
+              :class="{ selected: selectedIssueType?.id === type.id }"
+              :style="{ '--card-color': type.color }"
+              @click="selectIssueType(type)"
+            >
+              <div class="type-icon-wrapper">
+                <span class="type-emoji">{{ type.emoji }}</span>
+              </div>
+              <span class="type-name">{{ type.label }}</span>
+              <div class="selection-indicator">
+                <ion-icon :icon="checkmarkCircleOutline"></ion-icon>
+              </div>
             </div>
-            <span class="marker-label">{{ type.label }}</span>
+          </div>
+          
+          <!-- Instruction -->
+          <div v-if="selectedIssueType" class="instruction-banner">
+            <ion-icon :icon="fingerPrintOutline"></ion-icon>
+            <span>Touchez la carte pour placer votre signalement</span>
           </div>
         </div>
-        <p v-if="selectedIssueType" class="instruction-text">
-          <ion-icon :icon="locationOutline"></ion-icon>
-          Cliquez sur la carte pour placer le marqueur
-        </p>
-      </div>
+      </transition>
       
       <ion-loading :is-open="loading" message="Chargement des signalements..."></ion-loading>
       
@@ -121,164 +177,263 @@
       ></ion-toast>
     </ion-content>
     
-    <!-- Modal de statistiques -->
-    <ion-modal :is-open="showStatsModal" @didDismiss="showStatsModal = false">
-      <ion-header>
+    <!-- Modal de statistiques redesigné -->
+    <ion-modal :is-open="showStatsModal" @didDismiss="showStatsModal = false; isStatsFullscreen = false" class="stats-modal" :class="{ 'stats-fullscreen': isStatsFullscreen }">
+      <ion-header class="stats-header">
         <ion-toolbar>
-          <ion-title>Tableau récapitulatif</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="showStatsModal = false">
-              <ion-icon :icon="closeOutline"></ion-icon>
-            </ion-button>
-          </ion-buttons>
+          <div class="stats-header-content">
+            <div class="stats-header-info">
+              <div class="stats-icon-badge">
+                <ion-icon :icon="analyticsOutline"></ion-icon>
+              </div>
+              <div>
+                <h2>Tableau de bord</h2>
+                <p>{{ globalStats.totalIssues }} signalements • {{ formatBudgetShort(globalStats.totalBudget) }}</p>
+              </div>
+            </div>
+            <div class="header-actions-group">
+              <button class="expand-modal-btn" @click="isStatsFullscreen = !isStatsFullscreen" :title="isStatsFullscreen ? 'Réduire' : 'Agrandir'">
+                <ion-icon :icon="isStatsFullscreen ? contractOutline : expandOutline"></ion-icon>
+              </button>
+              <button class="close-modal-btn" @click="showStatsModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </button>
+            </div>
+          </div>
         </ion-toolbar>
       </ion-header>
       
-      <ion-content class="ion-padding">
-        <!-- Résumé global -->
-        <div class="stats-summary">
-          <div class="stat-card">
-            <div class="stat-value">{{ globalStats.totalIssues }}</div>
-            <div class="stat-label">Signalements</div>
+      <ion-content class="stats-content">
+        <!-- Hero stats -->
+        <div class="hero-stats">
+          <div class="hero-stat-card main">
+            <div class="hero-stat-icon">
+              <ion-icon :icon="documentsOutline"></ion-icon>
+            </div>
+            <div class="hero-stat-info">
+              <span class="hero-stat-value">{{ globalStats.totalIssues }}</span>
+              <span class="hero-stat-label">Signalements</span>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ globalStats.totalSurface.toFixed(1) }} m²</div>
-            <div class="stat-label">Surface totale</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ globalStats.progressPercentage.toFixed(1) }}%</div>
-            <div class="stat-label">Avancement</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">{{ formatBudgetShort(globalStats.totalBudget) }}</div>
-            <div class="stat-label">Budget total</div>
+          
+          <div class="hero-stat-row">
+            <div class="hero-stat-card small">
+              <span class="small-stat-value">{{ globalStats.totalSurface.toFixed(0) }}</span>
+              <span class="small-stat-label">m² Surface</span>
+            </div>
+            <div class="hero-stat-card small accent">
+              <span class="small-stat-value">{{ formatBudgetShort(globalStats.totalBudget) }}</span>
+              <span class="small-stat-label">Budget</span>
+            </div>
           </div>
         </div>
         
-        <!-- Barre de progression -->
-        <div class="progress-section">
-          <h3>Avancement global</h3>
-          <div class="progress-bar-container">
-            <div class="progress-bar" :style="{ width: globalStats.progressPercentage + '%' }"></div>
+        <!-- Progression circulaire -->
+        <div class="progress-card">
+          <div class="circular-progress" :style="{ '--progress': globalStats.progressPercentage }">
+            <svg viewBox="0 0 100 100">
+              <circle class="progress-bg" cx="50" cy="50" r="45"></circle>
+              <circle class="progress-fill" cx="50" cy="50" r="45" 
+                :stroke-dasharray="`${globalStats.progressPercentage * 2.827} 282.7`"></circle>
+            </svg>
+            <div class="progress-text">
+              <span class="progress-value">{{ globalStats.progressPercentage.toFixed(0) }}%</span>
+              <span class="progress-label">Avancement</span>
+            </div>
           </div>
           <div class="progress-details">
-            <span>{{ globalStats.resolvedIssues }} résolus sur {{ globalStats.totalIssues }}</span>
+            <div class="progress-detail-item">
+              <span class="detail-dot resolved"></span>
+              <span>{{ globalStats.resolvedIssues }} résolus</span>
+            </div>
+            <div class="progress-detail-item">
+              <span class="detail-dot pending"></span>
+              <span>{{ globalStats.totalIssues - globalStats.resolvedIssues }} en attente</span>
+            </div>
           </div>
         </div>
         
-        <!-- Tableau par type -->
-        <h3 class="section-title">Détails par type</h3>
-        <div class="stats-table-container">
-          <table class="stats-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Nb</th>
-                <th>Surface (m²)</th>
-                <th>Avancement</th>
-                <th>Budget (MGA)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="stat in statsByType" :key="stat.type.id">
-                <td>
-                  <div class="type-cell">
-                    <div class="type-icon" :style="{ backgroundColor: stat.type.color }">
-                      <ion-icon :icon="stat.type.icon"></ion-icon>
-                    </div>
-                    <span>{{ stat.type.label }}</span>
-                  </div>
-                </td>
-                <td class="center">{{ stat.count }}</td>
-                <td class="center">{{ stat.totalSurface.toFixed(1) }}</td>
-                <td class="center">
-                  <div class="mini-progress">
-                    <div class="mini-progress-bar" :style="{ width: stat.progressPercentage + '%' }"></div>
-                    <span>{{ stat.progressPercentage.toFixed(0) }}%</span>
-                  </div>
-                </td>
-                <td class="right">{{ formatBudgetShort(stat.totalBudget) }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="total-row">
-                <td><strong>TOTAL</strong></td>
-                <td class="center"><strong>{{ globalStats.totalIssues }}</strong></td>
-                <td class="center"><strong>{{ globalStats.totalSurface.toFixed(1) }}</strong></td>
-                <td class="center"><strong>{{ globalStats.progressPercentage.toFixed(1) }}%</strong></td>
-                <td class="right"><strong>{{ formatBudgetShort(globalStats.totalBudget) }}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
+        <!-- Statistiques par type -->
+        <div class="section-header">
+          <ion-icon :icon="gridOutline"></ion-icon>
+          <h3>Par catégorie</h3>
         </div>
         
-        <!-- Tableau par statut -->
-        <h3 class="section-title">Répartition par statut</h3>
-        <div class="status-cards">
+        <div class="type-stats-grid">
+          <div 
+            v-for="stat in statsByType" 
+            :key="stat.type.id"
+            class="type-stat-card"
+            :style="{ '--type-color': stat.type.color }"
+          >
+            <div class="type-stat-header">
+              <span class="type-stat-emoji">{{ stat.type.emoji }}</span>
+              <span class="type-stat-name">{{ stat.type.label }}</span>
+            </div>
+            <div class="type-stat-body">
+              <div class="type-stat-main">
+                <span class="type-stat-count">{{ stat.count }}</span>
+                <span class="type-stat-unit">signalements</span>
+              </div>
+              <div class="type-stat-details">
+                <div class="detail-row">
+                  <span>Surface</span>
+                  <span>{{ stat.totalSurface.toFixed(0) }} m²</span>
+                </div>
+                <div class="detail-row">
+                  <span>Budget</span>
+                  <span>{{ formatBudgetShort(stat.totalBudget) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="type-stat-progress">
+              <div class="progress-track">
+                <div class="progress-fill" :style="{ width: stat.progressPercentage + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ stat.progressPercentage.toFixed(0) }}% résolus</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Statuts -->
+        <div class="section-header">
+          <ion-icon :icon="flagOutline"></ion-icon>
+          <h3>Par statut</h3>
+        </div>
+        
+        <div class="status-pills">
           <div 
             v-for="stat in statsByStatus" 
             :key="stat.statusId"
-            class="status-card"
+            class="status-pill"
             :class="'status-' + stat.statusId"
           >
-            <div class="status-count">{{ stat.count }}</div>
-            <div class="status-label">{{ stat.label }}</div>
-            <div class="status-percentage">{{ stat.percentage.toFixed(1) }}%</div>
+            <div class="pill-content">
+              <span class="pill-count">{{ stat.count }}</span>
+              <span class="pill-label">{{ stat.label }}</span>
+            </div>
+            <div class="pill-percentage">{{ stat.percentage.toFixed(0) }}%</div>
           </div>
         </div>
       </ion-content>
     </ion-modal>
     
-    <!-- Modal de création de signalement -->
-    <ion-modal :is-open="showModal" @didDismiss="closeModal">
-      <ion-header>
+    <!-- Modal de création moderne -->
+    <ion-modal :is-open="showModal" @didDismiss="closeModal" class="create-modal">
+      <ion-header class="create-header">
         <ion-toolbar>
-          <ion-title>Nouveau signalement</ion-title>
-          <ion-buttons slot="end">
-            <ion-button @click="closeModal">
+          <div class="create-header-content">
+            <div class="create-header-info" v-if="selectedIssueType">
+              <div class="selected-type-badge" :style="{ backgroundColor: selectedIssueType.color }">
+                <span>{{ selectedIssueType.emoji }}</span>
+              </div>
+              <div>
+                <h2>{{ selectedIssueType.label }}</h2>
+                <p class="location-text">
+                  <ion-icon :icon="locationOutline"></ion-icon>
+                  {{ selectedLocation?.lat.toFixed(4) }}, {{ selectedLocation?.lng.toFixed(4) }}
+                </p>
+              </div>
+            </div>
+            <button class="close-modal-btn" @click="closeModal">
               <ion-icon :icon="closeOutline"></ion-icon>
-            </ion-button>
-          </ion-buttons>
+            </button>
+          </div>
         </ion-toolbar>
       </ion-header>
       
-      <ion-content class="ion-padding">
-        <!-- Type sélectionné -->
-        <div class="selected-type" v-if="selectedIssueType">
-          <div class="type-badge" :style="{ backgroundColor: selectedIssueType.color }">
-            <ion-icon :icon="selectedIssueType.icon"></ion-icon>
+      <ion-content class="create-content">
+        <!-- Formulaire moderne -->
+        <div class="form-section">
+          <div class="input-group">
+            <label class="input-label">
+              <ion-icon :icon="textOutline"></ion-icon>
+              Titre du signalement
+            </label>
+            <input 
+              v-model="newIssue.title" 
+              type="text" 
+              class="modern-input"
+              placeholder="Ex: Nid de poule dangereux"
+            />
           </div>
-          <span>{{ selectedIssueType.label }}</span>
+          
+          <div class="input-group">
+            <label class="input-label">
+              <ion-icon :icon="documentTextOutline"></ion-icon>
+              Description détaillée
+            </label>
+            <textarea 
+              v-model="newIssue.description" 
+              class="modern-textarea"
+              rows="3"
+              placeholder="Décrivez le problème en détail..."
+            ></textarea>
+          </div>
+          
+          <div class="input-row">
+            <div class="input-group half">
+              <label class="input-label">
+                <ion-icon :icon="resizeOutline"></ion-icon>
+                Surface (m²)
+              </label>
+              <input 
+                v-model.number="newIssue.surface" 
+                type="number" 
+                class="modern-input"
+                placeholder="10"
+                @input="calculateBudget"
+              />
+            </div>
+            
+            <div class="input-group half">
+              <label class="input-label">
+                <ion-icon :icon="speedometerOutline"></ion-icon>
+                Gravité
+              </label>
+              <div class="severity-selector">
+                <button 
+                  v-for="n in 10" 
+                  :key="n"
+                  class="severity-btn"
+                  :class="{ active: newIssue.niveau === n, low: n <= 3, medium: n > 3 && n <= 6, high: n > 6 }"
+                  @click="newIssue.niveau = n; calculateBudget()"
+                >
+                  {{ n }}
+                </button>
+              </div>
+              <span class="severity-label">{{ getNiveauLabel(newIssue.niveau) }}</span>
+            </div>
+          </div>
         </div>
         
-        <div class="selected-location">
-          <ion-icon :icon="locationOutline"></ion-icon>
-          <span>Position: {{ selectedLocation?.lat.toFixed(6) }}, {{ selectedLocation?.lng.toFixed(6) }}</span>
+        <!-- Budget estimé moderne -->
+        <div class="budget-card" v-if="newIssue.surface > 0 && newIssue.niveau > 0">
+          <div class="budget-header">
+            <ion-icon :icon="walletOutline"></ion-icon>
+            <span>Estimation du budget</span>
+          </div>
+          <div class="budget-calculation">
+            <div class="calc-item">
+              <span class="calc-label">Prix/m²</span>
+              <span class="calc-value">{{ formatBudget(prixForfaitaire) }}</span>
+            </div>
+            <span class="calc-operator">×</span>
+            <div class="calc-item">
+              <span class="calc-label">Niveau</span>
+              <span class="calc-value">{{ newIssue.niveau }}</span>
+            </div>
+            <span class="calc-operator">×</span>
+            <div class="calc-item">
+              <span class="calc-label">Surface</span>
+              <span class="calc-value">{{ newIssue.surface }} m²</span>
+            </div>
+          </div>
+          <div class="budget-total">
+            <span class="total-label">Total estimé</span>
+            <span class="total-value">{{ formatBudget(calculatedBudget) }}</span>
+          </div>
         </div>
-        
-        <ion-item>
-          <ion-label position="floating">Titre *</ion-label>
-          <ion-input v-model="newIssue.title" type="text" placeholder="Ex: Nid de poule"></ion-input>
-        </ion-item>
-        
-        <ion-item>
-          <ion-label position="floating">Description *</ion-label>
-          <ion-textarea 
-            v-model="newIssue.description" 
-            rows="4" 
-            placeholder="Décrivez le problème..."
-          ></ion-textarea>
-        </ion-item>
-        
-        <ion-item>
-          <ion-label position="floating">Surface (m²)</ion-label>
-          <ion-input v-model.number="newIssue.surface" type="number" placeholder="Ex: 10"></ion-input>
-        </ion-item>
-        
-        <ion-item>
-          <ion-label position="floating">Budget estimé (MGA)</ion-label>
-          <ion-input v-model.number="newIssue.budget" type="number" placeholder="Ex: 500000"></ion-input>
-        </ion-item>
         
         <!-- Section Photos -->
         <div class="photos-section">
@@ -330,7 +485,7 @@
           expand="block" 
           class="ion-margin-top" 
           @click="submitIssue" 
-          :disabled="submitting || !newIssue.title || !newIssue.description"
+          :disabled="submitting || !newIssue.title || !newIssue.description || !newIssue.surface || !newIssue.niveau"
         >
           <ion-spinner v-if="submitting" name="crescent"></ion-spinner>
           <span v-else>Créer le signalement</span>
@@ -406,14 +561,23 @@ import {
   checkmarkCircleOutline, flashOutline, trashOutline, leafOutline,
   chevronDownOutline, chevronUpOutline, checkboxOutline, squareOutline,
   statsChartOutline, navigateOutline, cameraOutline, imagesOutline, 
-  closeCircleOutline, expandOutline
+  closeCircleOutline, expandOutline, contractOutline, informationCircleOutline, calculatorOutline,
+  filterOutline, personOutline, checkmarkDoneOutline, fingerPrintOutline,
+  analyticsOutline, documentsOutline, gridOutline, flagOutline,
+  textOutline, documentTextOutline, resizeOutline, speedometerOutline, walletOutline
 } from 'ionicons/icons';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Capacitor } from '@capacitor/core';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { collection, getDocs, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, Timestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { notificationService } from '@/services/notificationService';
+import NotificationBell from '@/components/NotificationBell.vue';
 
 // Types de signalements avec icônes et couleurs
 interface IssueType {
@@ -460,6 +624,7 @@ interface Signal {
   longitude: number;
   surface: number;
   budget: number;
+  niveau: number; // Ajout du niveau
   status: string;
   statusId: number;
   typeId: number;
@@ -487,6 +652,7 @@ const signals = ref<Signal[]>([]);
 const isSignalMode = ref(false);
 const showModal = ref(false);
 const showStatsModal = ref(false);
+const isStatsFullscreen = ref(false);
 const submitting = ref(false);
 const selectedLocation = ref<{ lat: number; lng: number } | null>(null);
 const selectedIssueType = ref<IssueType | null>(null);
@@ -512,9 +678,71 @@ const newIssue = reactive({
   title: '',
   description: '',
   surface: 0,
-  budget: 0,
+  niveau: 1, // Niveau par défaut
   status: 'signale'
 });
+
+// Budget calculé automatiquement
+const calculatedBudget = computed(() => {
+  return prixForfaitaire.value * newIssue.niveau * newIssue.surface;
+});
+
+// Prix forfaitaire
+const prixForfaitaire = ref<number>(50000); // Valeur par défaut
+const loadingPrix = ref(false);
+
+// Charger le prix forfaitaire depuis Firebase
+const loadPrixForfaitaire = async () => {
+  loadingPrix.value = true;
+  try {
+    // Essayer de charger depuis la collection prix_forfaitaire
+    const prixDocRef = doc(db, 'prix_forfaitaire', 'config');
+    const prixDoc = await getDoc(prixDocRef);
+    
+    if (prixDoc.exists()) {
+      const data = prixDoc.data();
+      prixForfaitaire.value = data.prix_par_m2 || 50000;
+      console.log('💰 Prix forfaitaire chargé:', prixForfaitaire.value);
+    } else {
+      // Créer le document avec la valeur par défaut
+      await setDoc(prixDocRef, {
+        prix_par_m2: 50000,
+        updated_at: Timestamp.now()
+      });
+      console.log('💰 Prix forfaitaire créé avec valeur par défaut: 50000');
+    }
+  } catch (error) {
+    console.error('❌ Erreur chargement prix forfaitaire:', error);
+    // Utiliser la valeur par défaut en cas d'erreur
+    prixForfaitaire.value = 50000;
+  } finally {
+    loadingPrix.value = false;
+  }
+};
+
+// Obtenir le label du niveau
+const getNiveauLabel = (niveau: number): string => {
+  const labels: Record<number, string> = {
+    1: 'Très faible',
+    2: 'Faible',
+    3: 'Faible+',
+    4: 'Modéré',
+    5: 'Moyen',
+    6: 'Moyen+',
+    7: 'Élevé',
+    8: 'Élevé+',
+    9: 'Très élevé',
+    10: 'Critique'
+  };
+  return labels[niveau] || 'Inconnu';
+};
+
+// Fonction pour calculer le budget (appelée lors des changements)
+const calculateBudget = () => {
+  // Le budget est calculé via computed, cette fonction peut être utilisée
+  // pour des effets secondaires si nécessaire
+  console.log(`📊 Calcul budget: ${prixForfaitaire.value} × ${newIssue.niveau} × ${newIssue.surface} = ${calculatedBudget.value}`);
+};
 
 // Fonction pour parser le budget (gère string et number)
 const parseBudget = (budget: any): number => {
@@ -768,6 +996,14 @@ const createPopupContent = (signal: Signal): string => {
           font-size: 11px;
           font-weight: 600;
         ">${type.label}</span>
+        <span style="
+          background-color: ${getNiveauColor(signal.niveau)};
+          color: white;
+          padding: 4px 8px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+        ">Niveau ${signal.niveau}</span>
         ${hasPhotos ? `
           <span style="
             background-color: #2196f3;
@@ -776,12 +1012,8 @@ const createPopupContent = (signal: Signal): string => {
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 4px;
           ">
-            <ion-icon name="images-outline" style="font-size: 12px;"></ion-icon>
-            ${photoCount}
+            📷 ${photoCount}
           </span>
         ` : ''}
       </div>
@@ -792,6 +1024,10 @@ const createPopupContent = (signal: Signal): string => {
         <tr>
           <td><strong>Surface:</strong></td>
           <td>${signal.surface} m²</td>
+        </tr>
+        <tr>
+          <td><strong>Niveau:</strong></td>
+          <td>${signal.niveau}/10 (${getNiveauLabel(signal.niveau)})</td>
         </tr>
         <tr>
           <td><strong>Budget:</strong></td>
@@ -820,65 +1056,33 @@ const createPopupContent = (signal: Signal): string => {
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: transform 0.2s, box-shadow 0.2s;
           "
-          onmouseover="this.style.transform='scale(1.02)'; this.style.boxShadow='0 4px 12px rgba(33, 150, 243, 0.4)';"
-          onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';"
         >
-          <ion-icon name="images-outline" style="font-size: 16px;"></ion-icon>
-          Voir les photos (${photoCount})
+          📷 Voir les photos (${photoCount})
         </button>
-      ` : `
-        <div style="
-          margin-top: 12px;
-          padding: 10px;
-          background: #f5f5f5;
-          border-radius: 8px;
-          text-align: center;
-          color: #999;
-          font-size: 12px;
-        ">
-          <ion-icon name="images-outline" style="font-size: 16px; margin-bottom: 4px; display: block;"></ion-icon>
-          Aucune photo
-        </div>
-      `}
+      ` : ''}
     </div>
   `;
 };
 
-// Créer le contenu du tooltip (survol) avec indicateur photos
+// Créer le contenu du tooltip (info rapide au survol)
 const createTooltipContent = (signal: Signal): string => {
   const type = issueTypes.find(t => t.id === signal.typeId) || issueTypes[0];
-  const hasPhotos = signal.photos && signal.photos.length > 0;
-  const photoCount = signal.photos?.length || 0;
-  
   return `
-    <div style="min-width: 150px;">
+    <div style="text-align: center;">
       <strong>${signal.title}</strong><br>
-      <small style="color: ${type.color};">${type.label}</small><br>
-      <small>Statut: ${getStatusText(signal.statusId)}</small>
-      ${hasPhotos ? `
-        <br>
-        <small style="
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          margin-top: 4px;
-          padding: 2px 6px;
-          background: #2196f3;
-          color: white;
-          border-radius: 4px;
-        ">
-          <ion-icon name="images-outline" style="font-size: 11px;"></ion-icon>
-          ${photoCount} photo${photoCount > 1 ? 's' : ''}
-        </small>
-      ` : ''}
+      <span style="color: ${type.color};">${type.label}</span> | Niveau ${signal.niveau}
     </div>
   `;
+};
+
+// Fonction pour obtenir la couleur selon le niveau
+const getNiveauColor = (niveau: number): string => {
+  if (niveau <= 2) return '#4caf50'; // Vert
+  if (niveau <= 4) return '#8bc34a'; // Vert clair
+  if (niveau <= 6) return '#ff9800'; // Orange
+  if (niveau <= 8) return '#f44336'; // Rouge
+  return '#9c27b0'; // Violet (critique)
 };
 
 // Charger les signalements depuis Firestore (les deux collections)
@@ -887,13 +1091,20 @@ const loadSignals = async () => {
   try {
     const allSignals: Signal[] = [];
     
-    // Charger depuis la collection 'signals'
+    // Charger depuis 'signals'
     const signalsSnapshot = await getDocs(collection(db, 'signals'));
     signalsSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const typeId = data.typeId || 1;
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      let photos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
+      } else if (data.photos) {
+        photos = data.photos;
+      }
       
       allSignals.push({
         id: doc.id,
@@ -903,6 +1114,7 @@ const loadSignals = async () => {
         longitude: data.longitude || 0,
         surface: parseSurface(data.surface),
         budget: parseBudget(data.budget),
+        niveau: data.niveau || 1, // Ajout du niveau
         status,
         statusId,
         typeId,
@@ -912,18 +1124,25 @@ const loadSignals = async () => {
         reportedBy: data.reportedBy || data.userId || '',
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
-        photos: data.photos || [],
+        photos: photos,
         source: 'signals'
       });
     });
     
-    // Charger depuis la collection 'road_issues'
+    // Charger depuis 'road_issues'
     const roadIssuesSnapshot = await getDocs(collection(db, 'road_issues'));
     roadIssuesSnapshot.docs.forEach(doc => {
       const data = doc.data();
       const typeId = data.typeId || data.issueTypeId || 1;
       const type = issueTypes.find(t => t.id === typeId) || issueTypes[0];
       const { status, statusId } = normalizeStatus(data.status, data.statusId);
+      
+      let photos: string[] = [];
+      if (data.photosBase64 && Array.isArray(data.photosBase64)) {
+        photos = data.photosBase64.map((base64: string) => `data:image/jpeg;base64,${base64}`);
+      } else if (data.photos) {
+        photos = data.photos;
+      }
       
       allSignals.push({
         id: doc.id,
@@ -933,6 +1152,7 @@ const loadSignals = async () => {
         longitude: data.longitude || 0,
         surface: parseSurface(data.surfaceM2 || data.surface),
         budget: parseBudget(data.budget),
+        niveau: data.niveau || 1, // Ajout du niveau
         status,
         statusId,
         typeId,
@@ -943,7 +1163,7 @@ const loadSignals = async () => {
         createdAt: data.reportedAt || data.createdAt,
         updatedAt: data.updatedAt,
         companyId: data.companyId,
-        photos: data.photos || [],
+        photos: photos,
         source: 'road_issues'
       });
     });
@@ -1087,7 +1307,7 @@ const closeModal = () => {
   newIssue.title = '';
   newIssue.description = '';
   newIssue.surface = 0;
-  newIssue.budget = 0;
+  newIssue.niveau = 1; // Réinitialiser le niveau
   newIssue.status = 'signale';
   capturedPhotos.value = [];
 };
@@ -1148,12 +1368,32 @@ const useMyLocation = async () => {
   gettingLocation.value = true;
   
   try {
+    // Étape 1: Vérifier et demander les permissions
+    let permissionStatus = await Geolocation.checkPermissions();
+    console.log('📍 Permission actuelle:', permissionStatus.location);
+    
+    if (permissionStatus.location !== 'granted') {
+      console.log('📍 Demande de permission de localisation...');
+      permissionStatus = await Geolocation.requestPermissions();
+      console.log('📍 Nouvelle permission:', permissionStatus.location);
+      
+      if (permissionStatus.location !== 'granted') {
+        throw new Error('Permission de localisation refusée. Veuillez l\'activer dans les paramètres de votre téléphone.');
+      }
+    }
+    
+    // Étape 2: Récupérer la position
+    console.log('📍 Récupération de la position...');
+    
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 10000
+      timeout: 15000, // Augmenter le timeout à 15 secondes
+      maximumAge: 0 // Toujours récupérer une position fraîche
     });
     
     const { latitude, longitude } = position.coords;
+    console.log(`📍 Position récupérée: ${latitude}, ${longitude}`);
+    
     selectedLocation.value = { lat: latitude, lng: longitude };
     
     if (map) {
@@ -1172,17 +1412,296 @@ const useMyLocation = async () => {
     showModal.value = true;
     
   } catch (e: any) {
-    console.error('Erreur géolocalisation:', e);
-    error.value = 'Impossible de récupérer votre position. Vérifiez les permissions.';
+    console.error('❌ Erreur géolocalisation:', e);
+    
+    // Messages d'erreur plus précis
+    let errorMessage = 'Impossible de récupérer votre position.';
+    
+    if (e.message?.includes('permission') || e.message?.includes('Permission')) {
+      errorMessage = 'Permission de localisation refusée. Activez-la dans Paramètres > Applications > photo-gallery > Autorisations > Localisation.';
+    } else if (e.message?.includes('timeout') || e.code === 3) {
+      errorMessage = 'Délai dépassé. Assurez-vous que le GPS est activé et réessayez.';
+    } else if (e.message?.includes('unavailable') || e.code === 2) {
+      errorMessage = 'Service de localisation indisponible. Activez le GPS dans les paramètres.';
+    } else if (e.code === 1) {
+      errorMessage = 'Permission refusée. Autorisez l\'accès à la localisation dans les paramètres.';
+    }
+    
+    error.value = errorMessage;
   } finally {
     gettingLocation.value = false;
   }
 };
 
-// Soumettre le signalement
+// Générer un UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Fonction améliorée pour convertir une Photo en Blob
+const photoToBlob = async (photo: Photo): Promise<Blob> => {
+  if (!photo.webPath) {
+    throw new Error('Photo sans webPath');
+  }
+
+  try {
+    // Cas 1: URL blob locale (navigateur web)
+    if (photo.webPath.startsWith('blob:')) {
+      console.log('📸 Conversion blob URL:', photo.webPath);
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      console.log('✅ Blob créé:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 2: Chemin capacitor:// (mobile)
+    if (photo.webPath.startsWith('capacitor://')) {
+      console.log('📸 Lecture depuis Capacitor:', photo.webPath);
+      const base64Data = await Filesystem.readFile({
+        path: photo.webPath
+      });
+      
+      // Convertir base64 en blob
+      const base64String = typeof base64Data.data === 'string' 
+        ? base64Data.data 
+        : base64Data.data.toString();
+      
+      const mimeType = `image/${photo.format || 'jpeg'}`;
+      const base64Response = await fetch(`data:${mimeType};base64,${base64String}`);
+      const blob = await base64Response.blob();
+      console.log('✅ Blob créé depuis Capacitor:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 3: Chemin file:// (mobile)
+    if (photo.webPath.startsWith('file://')) {
+      console.log('📸 Lecture depuis file://', photo.webPath);
+      
+      // Extraire le chemin sans file://
+      const filePath = photo.webPath.replace('file://', '');
+      
+      const base64Data = await Filesystem.readFile({
+        path: filePath
+      });
+      
+      const base64String = typeof base64Data.data === 'string' 
+        ? base64Data.data 
+        : base64Data.data.toString();
+      
+      const mimeType = `image/${photo.format || 'jpeg'}`;
+      const base64Response = await fetch(`data:${mimeType};base64,${base64String}`);
+      const blob = await base64Response.blob();
+      console.log('✅ Blob créé depuis file://', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Cas 4: HTTP/HTTPS URL
+    if (photo.webPath.startsWith('http://') || photo.webPath.startsWith('https://')) {
+      console.log('📸 Téléchargement depuis URL:', photo.webPath);
+      const response = await fetch(photo.webPath);
+      const blob = await response.blob();
+      console.log('✅ Blob téléchargé:', blob.size, 'bytes', blob.type);
+      return blob;
+    }
+
+    // Fallback: essayer de fetch directement
+    console.log('📸 Tentative fetch direct:', photo.webPath);
+    const response = await fetch(photo.webPath);
+    const blob = await response.blob();
+    console.log('✅ Blob créé (fallback):', blob.size, 'bytes', blob.type);
+    return blob;
+    
+  } catch (error) {
+    console.error('❌ Erreur conversion photo en blob:', error);
+    console.error('Photo webPath:', photo.webPath);
+    console.error('Photo format:', photo.format);
+    throw new Error(`Impossible de convertir la photo en blob: ${error}`);
+  }
+};
+
+// Fonction améliorée pour uploader une photo vers Firebase Storage
+const uploadPhotoToStorage = async (photo: Photo, issueId: string, index: number): Promise<string> => {
+  try {
+    console.log(`📤 Upload photo ${index + 1}...`);
+    const storage = getStorage();
+    const blob = await photoToBlob(photo);
+    
+    // Vérifier la taille du blob
+    if (blob.size === 0) {
+      throw new Error('Fichier vide (0 bytes)');
+    }
+    
+    if (blob.size > 10 * 1024 * 1024) { // 10 MB max
+      throw new Error(`Fichier trop volumineux: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+    }
+    
+    // Déterminer l'extension et le type MIME
+    let extension = photo.format || 'jpg';
+    let mimeType = blob.type || 'image/jpeg';
+    
+    // Normaliser l'extension
+    if (extension === 'jpeg') extension = 'jpg';
+    
+    // S'assurer que le type MIME correspond à l'extension
+    if (!mimeType.startsWith('image/')) {
+      mimeType = `image/${extension}`;
+    }
+    
+    const fileName = `image_${index}_${Date.now()}.${extension}`;
+    const storagePath = `road_issues/${issueId}/${fileName}`;
+    
+    console.log(`📁 Chemin: ${storagePath}`);
+    console.log(`📊 Taille: ${(blob.size / 1024).toFixed(2)} KB`);
+    console.log(`🎨 Type: ${mimeType}`);
+    
+    // Créer la référence Firebase Storage
+    const imageRef = storageRef(storage, storagePath);
+    
+    // Uploader l'image avec metadata
+    const metadata = {
+      contentType: mimeType,
+      customMetadata: {
+        uploadedFrom: 'mobile-app',
+        issueId: issueId,
+        originalFormat: photo.format || 'unknown'
+      }
+    };
+    
+    await uploadBytes(imageRef, blob, metadata);
+    
+    // Récupérer l'URL de téléchargement
+    const downloadUrl = await getDownloadURL(imageRef);
+    
+    console.log(`✅ Image ${index + 1} uploadée avec succès!`);
+    console.log(`🔗 URL: ${downloadUrl.substring(0, 50)}...`);
+    
+    return downloadUrl;
+    
+  } catch (error) {
+    console.error(`❌ Erreur upload photo ${index + 1}:`, error);
+    throw error;
+  }
+};
+
+// Fonction pour compresser les images
+const compressImage = async (blob: Blob, maxWidth = 400, quality = 0.7): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    img.onload = () => {
+      // Calculer les nouvelles dimensions
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Dessiner l'image redimensionnée
+      ctx?.drawImage(img, 0, 0, width, height);
+      
+      // Convertir en blob compressé (JPEG pour meilleure compression)
+      canvas.toBlob(
+        (compressedBlob) => {
+          if (compressedBlob) {
+            const originalSize = (blob.size / 1024).toFixed(2);
+            const compressedSize = (compressedBlob.size / 1024).toFixed(2);
+            console.log(`📦 Compression: ${originalSize}KB → ${compressedSize}KB (${((1 - compressedBlob.size / blob.size) * 100).toFixed(1)}% réduit)`);
+            resolve(compressedBlob);
+          } else {
+            reject(new Error('Erreur de compression'));
+          }
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
+};
+
+// Fonction pour convertir un Blob en base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      // Retirer le préfixe "data:image/jpeg;base64,"
+      const base64Data = base64String.split(',')[1];
+      resolve(base64Data);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
+
+// Fonction pour convertir et compresser une photo en base64
+const photoToBase64 = async (photo: Photo): Promise<string> => {
+  try {
+    console.log('📸 Conversion photo en base64...');
+    
+    // Étape 1: Convertir en Blob
+    const blob = await photoToBlob(photo);
+    console.log(`📊 Taille originale: ${(blob.size / 1024).toFixed(2)} KB`);
+    
+    // Étape 2: Compresser l'image (400px max, qualité 70%)
+    const compressedBlob = await compressImage(blob, 400, 0.7);
+    
+    // Vérifier que la taille compressée ne dépasse pas ~200 KB
+    if (compressedBlob.size > 200 * 1024) {
+      console.warn('⚠️ Image encore trop volumineuse, compression supplémentaire...');
+      // Recompresser avec qualité réduite
+      const recompressedBlob = await compressImage(blob, 350, 0.6);
+      const base64 = await blobToBase64(recompressedBlob);
+      console.log(`✅ Taille finale: ${(recompressedBlob.size / 1024).toFixed(2)} KB`);
+      return base64;
+    }
+    
+    // Étape 3: Convertir en base64
+    const base64 = await blobToBase64(compressedBlob);
+    console.log(`✅ Conversion réussie: ${(compressedBlob.size / 1024).toFixed(2)} KB`);
+    
+    return base64;
+    
+  } catch (error) {
+    console.error('❌ Erreur conversion base64:', error);
+    throw new Error(`Impossible de convertir la photo: ${error}`);
+  }
+};
+
+// REMPLACER la fonction submitIssue par celle-ci
 const submitIssue = async () => {
   if (!selectedLocation.value || !newIssue.title || !newIssue.description || !selectedIssueType.value) {
     error.value = 'Veuillez remplir tous les champs obligatoires';
+    return;
+  }
+  
+  if (!newIssue.surface || newIssue.surface <= 0) {
+    error.value = 'Veuillez entrer une surface valide';
+    return;
+  }
+  
+  if (!newIssue.niveau || newIssue.niveau < 1 || newIssue.niveau > 10) {
+    error.value = 'Veuillez sélectionner un niveau de gravité (1-10)';
+    return;
+  }
+
+  
+
+  if (capturedPhotos.value.length > 3) {
+    error.value = 'Maximum 3 photos par signalement';
     return;
   }
   
@@ -1192,34 +1711,88 @@ const submitIssue = async () => {
     const currentUser = auth.currentUser;
     const reportedBy = currentUser?.uid || 'anonymous';
     const type = selectedIssueType.value;
+    const statusId = statusMapping[newIssue.status as keyof typeof statusMapping]?.id || 1;
+    const issueId = generateUUID();
     
-    const photosData: string[] = [];
-    for (const photo of capturedPhotos.value) {
-      if (photo.webPath) {
-        photosData.push(photo.webPath);
+    // Calculer le budget automatiquement
+    const budget = prixForfaitaire.value * newIssue.niveau * newIssue.surface;
+    
+    console.log(`🆕 Création du signalement ${issueId}`);
+    console.log(`📊 Budget calculé: ${prixForfaitaire.value} × ${newIssue.niveau} × ${newIssue.surface} = ${budget}`);
+    console.log(`📸 Nombre de photos: ${capturedPhotos.value.length}`);
+    
+    // Convertir les photos en base64
+    const photosBase64: string[] = [];
+    const failedPhotos: number[] = [];
+    
+    if (capturedPhotos.value.length > 0) {
+      successMessage.value = `Compression des photos (0/${capturedPhotos.value.length})...`;
+      
+      for (let i = 0; i < capturedPhotos.value.length; i++) {
+        const photo = capturedPhotos.value[i];
+        
+        try {
+          successMessage.value = `Compression des photos (${i + 1}/${capturedPhotos.value.length})...`;
+          const base64 = await photoToBase64(photo);
+          photosBase64.push(base64);
+          
+        } catch (conversionError: any) {
+          console.error(`❌ Échec conversion photo ${i + 1}:`, conversionError);
+          failedPhotos.push(i + 1);
+        }
+      }
+      
+      console.log(`✅ ${photosBase64.length}/${capturedPhotos.value.length} photos converties`);
+      
+      if (failedPhotos.length > 0) {
+        console.warn(`⚠️ Photos échouées: ${failedPhotos.join(', ')}`);
       }
     }
     
-    const docRef = await addDoc(collection(db, 'signals'), {
+    const now = Timestamp.now();
+    
+    // Créer le signalement avec le niveau et le budget calculé
+    const issueData = {
+      id: issueId,
       title: newIssue.title,
       description: newIssue.description,
       latitude: selectedLocation.value.lat,
       longitude: selectedLocation.value.lng,
-      surface: newIssue.surface || 0,
-      budget: newIssue.budget || 0,
-      status: newIssue.status,
+      surfaceM2: parseFloat(newIssue.surface.toFixed(2)),
+      niveau: newIssue.niveau, // Ajout du niveau
+      budget: parseFloat(budget.toFixed(2)), // Budget calculé
+      prixForfaitaireUtilise: prixForfaitaire.value, // Stocker le prix utilisé pour référence
+      statusId: statusId,
       typeId: type.id,
-      type: type.label,
-      color: type.color,
-      icon: type.emoji,
-      photos: photosData,
+      companyId: null,
+      photosBase64: photosBase64,
       reportedBy: reportedBy,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    });
+      reportedAt: now,
+      updatedAt: now
+    };
     
-    console.log('Signalement créé avec ID:', docRef.id);
-    successMessage.value = 'Signalement créé avec succès !';
+    // Vérifier la taille du document
+    const estimatedSize = JSON.stringify(issueData).length;
+    console.log(`📦 Taille estimée: ${(estimatedSize / 1024).toFixed(2)} KB`);
+    
+    if (estimatedSize > 900 * 1024) {
+      throw new Error('Document trop volumineux. Réduisez le nombre de photos.');
+    }
+    
+    console.log('💾 Sauvegarde dans Firestore...');
+    
+    const docRef = await addDoc(collection(db, 'road_issues'), issueData);
+    
+
+    console.log('✅ Signalement créé avec ID:', docRef.id);
+    
+    let message = `Signalement créé ! Budget estimé: ${formatBudget(budget)}`;
+    if (failedPhotos.length > 0) {
+      message += ` (${failedPhotos.length} photo(s) échouée(s))`;
+    }
+    
+    
+    successMessage.value = message;
     
     closeModal();
     isSignalMode.value = false;
@@ -1241,16 +1814,68 @@ const submitIssue = async () => {
     addMarkersToMap();
     
   } catch (e: any) {
-    console.error('Erreur lors de la création:', e);
+    console.error('❌ Erreur:', e);
     error.value = e.message || 'Erreur lors de la création du signalement';
   } finally {
     submitting.value = false;
   }
 };
 
+// Fonction de test (à supprimer après)
+const testNotification = async () => {
+  try {
+    const permStatus = await LocalNotifications.requestPermissions();
+    console.log('📱 Permission:', permStatus.display);
+    
+    if (permStatus.display === 'granted') {
+      // Créer le channel sur Android
+      if (Capacitor.getPlatform() === 'android') {
+        await LocalNotifications.createChannel({
+          id: 'test_channel',
+          name: 'Test Notifications',
+          description: 'Channel pour tester les notifications',
+          importance: 5,
+          vibration: true,
+          sound: 'default'
+        });
+      }
+      
+      const notifId = Math.floor(Math.random() * 2147483647);
+      
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: notifId,
+            title: '🔔 Test Notification',
+            body: 'Les notifications fonctionnent correctement !',
+            largeBody: 'Ceci est un test de notification.\n\nSi vous voyez cette notification, le système fonctionne parfaitement.',
+            channelId: 'test_channel',
+            schedule: { at: new Date(Date.now() + 1000) },
+            sound: 'default',
+            smallIcon: 'ic_launcher_foreground',
+            autoCancel: true
+          }
+        ]
+      });
+      successMessage.value = 'Notification de test envoyée ! Regardez votre barre de notifications.';
+    } else {
+      error.value = 'Permission de notification refusée. Activez-la dans les paramètres.';
+    }
+  } catch (e: any) {
+    console.error('Erreur test notification:', e);
+    error.value = e.message;
+  }
+};
+
 onMounted(async () => {
-  // Setup global handler for photo button clicks
   setupGlobalPhotoHandler();
+  
+  // Charger le prix forfaitaire
+  await loadPrixForfaitaire();
+  
+  // Initialiser les notifications
+  await notificationService.initialize();
+  await notificationService.startListeningToMyIssues();
   
   await loadSignals();
   
@@ -1279,6 +1904,9 @@ onBeforeUnmount(() => {
   // Cleanup global handler
   delete (window as any).openSignalPhotos;
   
+  // Arrêter les listeners de notifications
+  notificationService.stopListening();
+  
   if (map) {
     map.off('click', handleMapClick);
     map.remove();
@@ -1288,6 +1916,25 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+/* ========================================
+   DESIGN MODERNE - Signaleo
+   ======================================== */
+
+/* Variables CSS */
+:root {
+  --primary: #0f3460;
+  --primary-dark: #1a1a2e;
+  --secondary: #764ba2;
+  --accent: #f093fb;
+  --success: #48bb78;
+  --warning: #ed8936;
+  --danger: #f56565;
+  --dark: #2d3748;
+  --light: #f7fafc;
+  --gray: #718096;
+}
+
+/* Map de base */
 #map {
   position: absolute;
   top: 0;
@@ -1306,518 +1953,1517 @@ ion-content {
   --padding-bottom: 0;
 }
 
-/* ...existing code... */
-
-/* Styles pour le modal de statistiques */
-.stats-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
+/* ========================================
+   HEADER MODERNE
+   ======================================== */
+.modern-header ion-toolbar {
+  --background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --color: white;
+  padding: 8px 0;
 }
 
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.header-title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-logo {
+  width: 42px;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
-  padding: 16px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.app-logo ion-icon {
+  font-size: 24px;
   color: white;
 }
 
-.stat-value {
-  font-size: 24px;
+.header-titles .main-title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 700;
-  margin-bottom: 4px;
+  color: white;
+  letter-spacing: -0.5px;
 }
 
-.stat-label {
+.header-titles .subtitle {
+  margin: 2px 0 0 0;
   font-size: 12px;
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.8);
 }
 
-.progress-section {
-  background: #f5f5f5;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.progress-section h3 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
-  color: #333;
-}
-
-.progress-bar-container {
-  background: #e0e0e0;
-  border-radius: 10px;
-  height: 20px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  background: linear-gradient(90deg, #4caf50, #8bc34a);
-  height: 100%;
-  border-radius: 10px;
-  transition: width 0.5s ease;
-}
-
-.progress-details {
-  margin-top: 8px;
-  font-size: 12px;
-  color: #666;
-  text-align: center;
-}
-
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 20px 0 12px 0;
-}
-
-.stats-table-container {
-  overflow-x: auto;
-  margin-bottom: 20px;
-}
-
-.stats-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.stats-table th {
-  background: #f5f5f5;
-  padding: 10px 8px;
-  text-align: left;
-  font-weight: 600;
-  color: #333;
-  border-bottom: 2px solid #e0e0e0;
-}
-
-.stats-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #eee;
-}
-
-.stats-table .center {
-  text-align: center;
-}
-
-.stats-table .right {
-  text-align: right;
-}
-
-.stats-table .total-row {
-  background: #f5f5f5;
-}
-
-.stats-table .total-row td {
-  border-bottom: none;
-  border-top: 2px solid #e0e0e0;
-}
-
-.type-cell {
+.header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.type-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+.action-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.mini-progress {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mini-progress-bar {
-  flex: 1;
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
-  position: relative;
-  overflow: hidden;
-}
-
-.mini-progress-bar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-  background: #4caf50;
-  border-radius: 3px;
-}
-
-.mini-progress span {
-  font-size: 11px;
-  color: #666;
-  min-width: 35px;
-}
-
-.status-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.status-card {
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  color: white;
-}
-
-.status-card.status-1 {
-  background: linear-gradient(135deg, #ff9800, #f57c00);
-}
-
-.status-card.status-2 {
-  background: linear-gradient(135deg, #2196f3, #1976d2);
-}
-
-.status-card.status-3 {
-  background: linear-gradient(135deg, #4caf50, #388e3c);
-}
-
-.status-card.status-4 {
-  background: linear-gradient(135deg, #9e9e9e, #757575);
-}
-
-.status-count {
-  font-size: 28px;
-  font-weight: 700;
-}
-
-.status-label {
-  font-size: 13px;
-  margin: 4px 0;
-}
-
-.status-percentage {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-/* Styles existants pour la légende et le sélecteur */
-.map-legend {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  min-width: 140px;
-  overflow: hidden;
+  cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.legend-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: #f5f5f5;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  color: #333;
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
 }
 
-.legend-header ion-icon {
-  font-size: 16px;
-  color: #666;
-}
-
-.legend-content {
-  padding: 8px;
-  max-height: 350px;
-  overflow-y: auto;
-}
-
-.filter-section {
-  padding: 4px 8px;
-  margin-bottom: 4px;
-}
-
-.filter-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  color: #1976d2;
-  background: #e3f2fd;
-  transition: background 0.2s;
-}
-
-.filter-toggle:hover {
-  background: #bbdefb;
-}
-
-.filter-toggle ion-icon {
-  font-size: 18px;
-}
-
-.filter-divider {
-  height: 1px;
-  background: #e0e0e0;
-  margin: 8px;
-}
-
-.filter-actions {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 4px;
-  margin-bottom: 4px;
-}
-
-.filter-actions ion-button {
-  font-size: 11px;
-  --padding-start: 8px;
-  --padding-end: 8px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-
-.legend-item:hover {
-  background: #f5f5f5;
-}
-
-.legend-item.inactive {
-  opacity: 0.5;
-}
-
-.legend-item.inactive .legend-icon {
-  filter: grayscale(100%);
-}
-
-.filter-checkbox {
-  font-size: 16px;
-  color: #1976d2;
-  flex-shrink: 0;
-}
-
-.legend-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.action-btn ion-icon {
+  font-size: 20px;
   color: white;
-  font-size: 12px;
-  flex-shrink: 0;
 }
 
-.legend-label {
-  font-size: 12px;
-  color: #333;
-  flex: 1;
-}
-
-.legend-count {
-  font-size: 11px;
-  color: #999;
-}
-
-.marker-selector {
+/* ========================================
+   MINI STATS FLOTTANTES
+   ======================================== */
+.floating-stats {
   position: absolute;
-  bottom: 20px;
-  left: 10px;
-  right: 10px;
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 8px;
   z-index: 1000;
 }
 
-.selector-title {
-  margin: 0 0 12px 0;
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-}
-
-.marker-options {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.marker-option {
+.mini-stat {
+  background: white;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-width: 60px;
+}
+
+.mini-stat .stat-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.mini-stat .stat-text {
+  font-size: 10px;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mini-stat.resolved .stat-number {
+  color: #48bb78;
+}
+
+.mini-stat.progress .stat-number {
+  color: #0f3460;
+}
+
+/* ========================================
+   PANNEAU DE FILTRES MODERNE
+   ======================================== */
+.filters-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  min-width: 180px;
+  max-width: 220px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filters-panel.collapsed {
+  max-width: 140px;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  cursor: pointer;
+  color: white;
+}
+
+.filters-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.filters-title ion-icon {
+  font-size: 18px;
+}
+
+.filters-title span {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.filters-badge {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.toggle-icon {
+  font-size: 16px;
+  transition: transform 0.3s ease;
+}
+
+.filters-body {
+  padding: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.my-issues-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f7fafc;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 10px;
+}
+
+.my-issues-toggle:hover {
+  background: #edf2f7;
+}
+
+.my-issues-toggle.active {
+  background: linear-gradient(135deg, #1a1a2e20 0%, #0f346020 100%);
+  border: 1px solid #0f346040;
+}
+
+.my-issues-toggle ion-icon {
+  font-size: 18px;
+  color: #0f3460;
+}
+
+.my-issues-toggle span {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: #cbd5e0;
+  border-radius: 10px;
+  position: relative;
+  transition: background 0.3s ease;
+}
+
+.my-issues-toggle.active .toggle-switch {
+  background: #0f3460;
+}
+
+.toggle-dot {
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.my-issues-toggle.active .toggle-dot {
+  transform: translateX(16px);
+}
+
+.filters-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 12px 0;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.quick-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  border: none;
+  background: #f7fafc;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #4a5568;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quick-btn:hover {
+  background: #edf2f7;
+}
+
+.quick-btn ion-icon {
+  font-size: 14px;
+}
+
+.filter-types-grid {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  padding: 10px;
-  border-radius: 12px;
+}
+
+.filter-type-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #f7fafc;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   border: 2px solid transparent;
 }
 
-.marker-option:hover {
-  background: #f5f5f5;
+.filter-type-chip:hover {
+  background: #edf2f7;
 }
 
-.marker-option.selected {
-  background: #e3f2fd;
-  border-color: #2196f3;
+.filter-type-chip.active {
+  background: white;
+  border-color: var(--chip-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.marker-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+.chip-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-size: 16px;
+  background: var(--chip-color);
+  opacity: 0.9;
 }
 
-.marker-label {
-  font-size: 11px;
-  color: #666;
-  text-align: center;
+.filter-type-chip:not(.active) .chip-icon {
+  filter: grayscale(50%);
+  opacity: 0.6;
+}
+
+.chip-label {
+  flex: 1;
+  font-size: 12px;
   font-weight: 500;
+  color: #4a5568;
 }
 
-.instruction-text {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 12px 0 0 0;
-  padding: 10px;
-  background: #e8f5e9;
-  border-radius: 8px;
-  color: #2e7d32;
-  font-size: 13px;
+.filter-type-chip:not(.active) .chip-label {
+  color: #a0aec0;
 }
 
-.selected-type {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  margin-bottom: 12px;
+.chip-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: #718096;
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 6px;
 }
 
-.type-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+/* ========================================
+   BOUTON FLOTTANT (FAB)
+   ======================================== */
+.fab-container {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+}
+
+.fab-button {
+  width: 60px;
+  height: 60px;
+  border: none;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   color: white;
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(15, 52, 96, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.selected-location {
-  background: #e3f2fd;
-  padding: 12px;
+.fab-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 35px rgba(15, 52, 96, 0.6);
+}
+
+.fab-button.active {
+  background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+  box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
+  transform: rotate(45deg);
+}
+
+.fab-button ion-icon {
+  font-size: 28px;
+  transition: transform 0.3s ease;
+}
+
+.fab-button.active ion-icon {
+  transform: rotate(-45deg);
+}
+
+.fab-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a5568;
+  background: white;
+  padding: 4px 10px;
   border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   SÉLECTEUR DE TYPE MODERNE
+   ======================================== */
+.type-selector-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 24px 24px 0 0;
+  padding: 24px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.selector-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.selector-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.selector-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #718096;
+}
+
+.gps-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  border: 2px dashed #0f3460;
+  background: linear-gradient(135deg, #1a1a2e10 0%, #0f346010 100%);
+  border-radius: 14px;
+  color: #0f3460;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.gps-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1a1a2e20 0%, #0f346020 100%);
+  transform: translateY(-2px);
+}
+
+.gps-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gps-button ion-icon {
+  font-size: 20px;
+}
+
+.type-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
   margin-bottom: 16px;
+}
+
+.type-option-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  background: #f7fafc;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+}
+
+.type-option-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.type-option-card.selected {
+  background: white;
+  border-color: var(--card-color);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.type-icon-wrapper {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-color);
+  transition: all 0.3s ease;
+}
+
+.type-emoji {
+  font-size: 26px;
+}
+
+.type-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a5568;
+  text-align: center;
+}
+
+.selection-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--card-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.3s ease;
+}
+
+.type-option-card.selected .selection-indicator {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.selection-indicator ion-icon {
+  font-size: 14px;
+  color: white;
+}
+
+.instruction-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  background: linear-gradient(135deg, #48bb7820 0%, #38a16920 100%);
+  border: 1px solid #48bb7840;
+  border-radius: 12px;
+  color: #276749;
+  font-size: 13px;
+  font-weight: 500;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.instruction-banner ion-icon {
+  font-size: 20px;
+}
+
+/* Animation slide-up */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+/* ========================================
+   MODAL DE STATISTIQUES
+   ======================================== */
+
+/* Fullscreen mode */
+.stats-modal {
+  --height: 85%;
+  --width: 100%;
+  --max-width: 500px;
+  --border-radius: 24px 24px 0 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-modal.stats-fullscreen {
+  --width: 100% !important;
+  --height: 100% !important;
+  --max-width: 100% !important;
+  --max-height: 100% !important;
+  --border-radius: 0 !important;
+}
+
+.stats-modal.stats-fullscreen::part(content) {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+}
+
+.stats-header ion-toolbar {
+  --background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --color: white;
+}
+
+.stats-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.stats-header-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stats-icon-badge {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.stats-icon-badge ion-icon {
+  font-size: 24px;
+  color: white;
+}
+
+.stats-header-info h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: -0.3px;
+}
+
+.stats-header-info p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.header-actions-group {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  color: #1976d2;
 }
 
-.selected-location ion-icon {
+.expand-modal-btn,
+.close-modal-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+}
+
+.expand-modal-btn:hover,
+.close-modal-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.expand-modal-btn ion-icon,
+.close-modal-btn ion-icon {
+  font-size: 20px;
+  color: white;
+}
+
+.stats-content {
+  --background: #f7fafc;
+  padding: 20px;
+}
+
+.stats-fullscreen .stats-content {
+  padding: 32px 48px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Hero Stats */
+.hero-stats {
+  margin-bottom: 24px;
+}
+
+.stats-fullscreen .hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.hero-stat-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.hero-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.hero-stat-card.main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+  color: white;
+  margin-bottom: 12px;
+}
+
+.stats-fullscreen .hero-stat-card.main {
+  margin-bottom: 0;
+  grid-column: 1;
+  grid-row: span 2;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.hero-stat-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.stats-fullscreen .hero-stat-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
+}
+
+.hero-stat-icon ion-icon {
+  font-size: 32px;
+}
+
+.stats-fullscreen .hero-stat-icon ion-icon {
+  font-size: 40px;
+}
+
+.hero-stat-value {
+  font-size: 40px;
+  font-weight: 800;
+  display: block;
+  letter-spacing: -1px;
+}
+
+.stats-fullscreen .hero-stat-value {
+  font-size: 52px;
+}
+
+.hero-stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.stats-fullscreen .hero-stat-label {
+  font-size: 16px;
+}
+
+.hero-stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.stats-fullscreen .hero-stat-row {
+  display: contents;
+}
+
+.hero-stat-card.small {
+  text-align: center;
+  padding: 18px 16px;
+}
+
+.stats-fullscreen .hero-stat-card.small {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.small-stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2d3748;
+  display: block;
+}
+
+.stats-fullscreen .small-stat-value {
+  font-size: 32px;
+}
+
+.hero-stat-card.small.accent .small-stat-value {
+  color: #0f3460;
+}
+
+.small-stat-label {
+  font-size: 12px;
+  color: #718096;
+  margin-top: 4px;
+}
+
+.stats-fullscreen .small-stat-label {
+  font-size: 14px;
+}
+
+/* Progress Card */
+.progress-card {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.progress-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .progress-card {
+  padding: 32px;
+  gap: 32px;
+}
+
+.circular-progress {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+}
+
+.stats-fullscreen .circular-progress {
+  width: 130px;
+  height: 130px;
+}
+
+.circular-progress svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.progress-bg {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 8;
+}
+
+.progress-fill {
+  fill: none;
+  stroke: url(#progressGradient);
+  stroke: #0f3460;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.progress-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2d3748;
+  display: block;
+}
+
+.stats-fullscreen .progress-value {
+  font-size: 28px;
+}
+
+.progress-label {
+  font-size: 10px;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-fullscreen .progress-label {
+  font-size: 12px;
+}
+
+.progress-details {
+  flex: 1;
+}
+
+.progress-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.stats-fullscreen .progress-detail-item {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+.detail-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.stats-fullscreen .detail-dot {
+  width: 14px;
+  height: 14px;
+}
+
+.detail-dot.resolved {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+}
+
+.detail-dot.pending {
+  background: linear-gradient(135deg, #ed8936, #dd6b20);
+}
+
+/* Section Headers */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.section-header ion-icon {
+  font-size: 22px;
+  color: #0f3460;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.stats-fullscreen .section-header h3 {
   font-size: 20px;
 }
 
-/* Section localisation */
-.location-section {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px dashed #e0e0e0;
+/* Type Stats Grid */
+.type-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
-.location-section ion-button {
-  --background: #e8f5e9;
-  --color: #2e7d32;
-  --border-color: #4caf50;
+.stats-fullscreen .type-stats-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
-/* Section Photos */
-.photos-section {
-  margin: 16px 0;
-  padding: 12px;
-  background: #f5f5f5;
+.type-stat-card {
+  background: white;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  border-left: 5px solid var(--type-color);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-left: 5px solid var(--type-color);
+}
+
+.type-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .type-stat-card {
+  padding: 22px;
+}
+
+.type-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.type-stat-emoji {
+  font-size: 28px;
+}
+
+.stats-fullscreen .type-stat-emoji {
+  font-size: 32px;
+}
+
+.type-stat-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.stats-fullscreen .type-stat-name {
+  font-size: 17px;
+}
+
+.type-stat-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.type-stat-count {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--type-color);
+}
+
+.stats-fullscreen .type-stat-count {
+  font-size: 36px;
+}
+
+.type-stat-unit {
+  font-size: 12px;
+  color: #718096;
+  margin-left: 4px;
+}
+
+.type-stat-details {
+  text-align: right;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #718096;
+  margin-bottom: 4px;
+}
+
+.detail-row span:last-child {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.type-stat-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-track {
+  flex: 1;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-track .progress-fill {
+  height: 100%;
+  background: var(--type-color);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.type-stat-progress .progress-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #718096;
+  min-width: 70px;
+  text-align: right;
+}
+
+/* Status Pills */
+.status-pills {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.stats-fullscreen .status-pills {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.status-pill {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.status-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .status-pill {
+  padding: 20px 24px;
+  border-radius: 16px;
+}
+
+.pill-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.pill-count {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.stats-fullscreen .pill-count {
+  font-size: 32px;
+}
+
+.pill-label {
+  font-size: 12px;
+  color: #718096;
+}
+
+.stats-fullscreen .pill-label {
+  font-size: 14px;
+}
+
+.pill-percentage {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.stats-fullscreen .pill-percentage {
+  font-size: 16px;
+  padding: 6px 14px;
+  border-radius: 10px;
+}
+
+.status-pill.status-1 .pill-count { color: #ed8936; }
+.status-pill.status-1 .pill-percentage { background: #feebc8; color: #c05621; }
+
+.status-pill.status-2 .pill-count { color: #4299e1; }
+.status-pill.status-2 .pill-percentage { background: #bee3f8; color: #2b6cb0; }
+
+.status-pill.status-3 .pill-count { color: #48bb78; }
+.status-pill.status-3 .pill-percentage { background: #c6f6d5; color: #276749; }
+
+.status-pill.status-4 .pill-count { color: #a0aec0; }
+.status-pill.status-4 .pill-percentage { background: #e2e8f0; color: #4a5568; }
+
+/* ========================================
+   MODAL DE CRÉATION
+   ======================================== */
+.create-header ion-toolbar {
+  --background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.create-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.create-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.selected-type-badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.create-header-info h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.location-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #718096;
+}
+
+.location-text ion-icon {
+  font-size: 14px;
+}
+
+.create-content {
+  --background: #f7fafc;
+  padding: 20px;
+}
+
+/* Form Styles */
+.form-section {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}
+
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-group.half {
+  flex: 1;
+}
+
+.input-row {
+  display: flex;
+  gap: 16px;
+}
+
+.input-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+.input-label ion-icon {
+  font-size: 16px;
+  color: #0f3460;
+}
+
+.modern-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
   border-radius: 12px;
+  font-size: 15px;
+  color: #2d3748;
+  background: #f7fafc;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.modern-input:focus {
+  border-color: #0f3460;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(15, 52, 96, 0.1);
+}
+
+.modern-input::placeholder {
+  color: #a0aec0;
+}
+
+.modern-textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #2d3748;
+  background: #f7fafc;
+  transition: all 0.3s ease;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+}
+
+.modern-textarea:focus {
+  border-color: #0f3460;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(15, 52, 96, 0.1);
+}
+
+/* Severity Selector */
+.severity-selector {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.severity-btn {
+  flex: 1;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #718096;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.severity-btn.active {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.severity-btn.low { background: #c6f6d5; color: #276749; }
+.severity-btn.low.active { background: #48bb78; color: white; }
+
+.severity-btn.medium { background: #feebc8; color: #c05621; }
+.severity-btn.medium.active { background: #ed8936; color: white; }
+
+.severity-btn.high { background: #fed7d7; color: #c53030; }
+.severity-btn.high.active { background: #f56565; color: white; }
+
+.severity-label {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  color: #718096;
+  font-weight: 500;
+}
+
+/* Budget Card */
+.budget-card {
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+  border-radius: 20px;
+  padding: 20px;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.budget-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.budget-header ion-icon {
+  font-size: 20px;
+}
+
+.budget-calculation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.calc-item {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+
+.calc-label {
+  display: block;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.calc-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calc-operator {
+  font-size: 18px;
+  font-weight: 300;
+  opacity: 0.6;
+}
+
+.budget-total {
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.total-label {
+  display: block;
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.total-value {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+/* Photos Section */
+.photos-section {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
 }
 
 .photos-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .photos-header ion-label {
   font-weight: 600;
   font-size: 14px;
-  color: #333;
+  color: #2d3748;
 }
 
 .photo-actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
 }
 
 .photo-actions ion-button {
-  --padding-start: 8px;
-  --padding-end: 8px;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --border-radius: 10px;
   font-size: 12px;
 }
 
 .photos-preview {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .photo-item {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .photo-item img {
@@ -1828,31 +3474,28 @@ ion-content {
 
 .remove-photo-btn {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 4px;
+  right: 4px;
   --padding-start: 4px;
   --padding-end: 4px;
-  --padding-top: 4px;
-  --padding-bottom: 4px;
   margin: 0;
   background: white;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.remove-photo-btn ion-icon {
-  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .no-photos-text {
   text-align: center;
-  color: #999;
+  color: #a0aec0;
   font-size: 13px;
-  padding: 20px;
+  padding: 30px;
   margin: 0;
+  background: #f7fafc;
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
 }
 
-/* Styles pour la galerie de photos */
+/* Gallery Styles */
 .photos-gallery {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1862,11 +3505,11 @@ ion-content {
 .gallery-item {
   position: relative;
   aspect-ratio: 1;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.3s ease;
 }
 
 .gallery-item:hover {
@@ -1881,16 +3524,13 @@ ion-content {
 
 .photo-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.3s ease;
 }
 
 .gallery-item:hover .photo-overlay {
@@ -1898,7 +3538,7 @@ ion-content {
 }
 
 .photo-overlay ion-icon {
-  font-size: 32px;
+  font-size: 36px;
   color: white;
 }
 
@@ -1908,7 +3548,7 @@ ion-content {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: #999;
+  color: #a0aec0;
 }
 
 .no-photos-icon {
@@ -1917,12 +3557,7 @@ ion-content {
   opacity: 0.5;
 }
 
-.no-photos-container p {
-  font-size: 14px;
-  margin: 0;
-}
-
-/* Photo plein écran */
+/* Fullscreen Photo */
 .fullscreen-photo-content {
   --background: #000;
 }
@@ -1944,23 +3579,28 @@ ion-content {
 </style>
 
 <style>
+/* Styles globaux pour les popups Leaflet */
 .custom-popup .leaflet-popup-content {
-  margin: 12px;
-  min-width: 250px;
+  margin: 14px;
+  min-width: 280px;
 }
 
 .custom-popup .leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+}
+
+.custom-popup .leaflet-popup-tip {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .custom-tooltip {
   background: white;
   border: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-  padding: 10px 14px;
-  font-size: 12px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  padding: 12px 16px;
+  font-size: 13px;
 }
 
 .custom-tooltip::before {
@@ -1969,11 +3609,11 @@ ion-content {
 
 .issue-popup h3 {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .issue-popup p {
-  color: #666;
+  color: #718096;
 }
 
 .custom-div-icon {

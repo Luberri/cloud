@@ -12,4 +12,5 @@ import java.util.UUID;
 public interface RoadIssueRepository extends JpaRepository<RoadIssue, UUID> {
     List<RoadIssue> findByIsSyncedFalse();
     Optional<RoadIssue> findByFirebaseId(String firebaseId);
+    List<RoadIssue> findByFirebaseIdIsNotNull();
 }

@@ -114,6 +114,14 @@ export default function HomePage({ onNavigate, onLogout }: HomePageProps) {
         </div>
 
         <div className="card">
+          <h3>Statistiques des travaux</h3>
+          <p>Tableau de statistiques : avancement et délais de traitement.</p>
+          <button className="btn" onClick={() => onNavigate("statistics")}>
+            Voir les statistiques
+          </button>
+        </div>
+
+        <div className="card">
           <h3>Voir la carte</h3>
           <p>Afficher la carte des signalements routiers.</p>
           <button className="btn" onClick={() => onNavigate("map")}>
