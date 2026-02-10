@@ -9,7 +9,7 @@
               <ion-icon :icon="locationOutline"></ion-icon>
             </div>
             <div class="header-titles">
-              <h1 class="main-title">SignalRoute</h1>
+              <h1 class="main-title">Signaleo</h1>
               <p class="subtitle">{{ signals.length }} signalements actifs</p>
             </div>
           </div>
@@ -178,20 +178,27 @@
     </ion-content>
     
     <!-- Modal de statistiques redesigné -->
-    <ion-modal :is-open="showStatsModal" @didDismiss="showStatsModal = false" class="stats-modal">
+    <ion-modal :is-open="showStatsModal" @didDismiss="showStatsModal = false; isStatsFullscreen = false" class="stats-modal" :class="{ 'stats-fullscreen': isStatsFullscreen }">
       <ion-header class="stats-header">
         <ion-toolbar>
           <div class="stats-header-content">
             <div class="stats-header-info">
-              <ion-icon :icon="analyticsOutline"></ion-icon>
+              <div class="stats-icon-badge">
+                <ion-icon :icon="analyticsOutline"></ion-icon>
+              </div>
               <div>
                 <h2>Tableau de bord</h2>
-                <p>Vue d'ensemble des signalements</p>
+                <p>{{ globalStats.totalIssues }} signalements • {{ formatBudgetShort(globalStats.totalBudget) }}</p>
               </div>
             </div>
-            <button class="close-modal-btn" @click="showStatsModal = false">
-              <ion-icon :icon="closeOutline"></ion-icon>
-            </button>
+            <div class="header-actions-group">
+              <button class="expand-modal-btn" @click="isStatsFullscreen = !isStatsFullscreen" :title="isStatsFullscreen ? 'Réduire' : 'Agrandir'">
+                <ion-icon :icon="isStatsFullscreen ? contractOutline : expandOutline"></ion-icon>
+              </button>
+              <button class="close-modal-btn" @click="showStatsModal = false">
+                <ion-icon :icon="closeOutline"></ion-icon>
+              </button>
+            </div>
           </div>
         </ion-toolbar>
       </ion-header>
@@ -554,7 +561,7 @@ import {
   checkmarkCircleOutline, flashOutline, trashOutline, leafOutline,
   chevronDownOutline, chevronUpOutline, checkboxOutline, squareOutline,
   statsChartOutline, navigateOutline, cameraOutline, imagesOutline, 
-  closeCircleOutline, expandOutline, informationCircleOutline, calculatorOutline,
+  closeCircleOutline, expandOutline, contractOutline, informationCircleOutline, calculatorOutline,
   filterOutline, personOutline, checkmarkDoneOutline, fingerPrintOutline,
   analyticsOutline, documentsOutline, gridOutline, flagOutline,
   textOutline, documentTextOutline, resizeOutline, speedometerOutline, walletOutline
@@ -645,6 +652,7 @@ const signals = ref<Signal[]>([]);
 const isSignalMode = ref(false);
 const showModal = ref(false);
 const showStatsModal = ref(false);
+const isStatsFullscreen = ref(false);
 const submitting = ref(false);
 const selectedLocation = ref<{ lat: number; lng: number } | null>(null);
 const selectedIssueType = ref<IssueType | null>(null);
@@ -1874,13 +1882,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 /* ========================================
-   DESIGN MODERNE - SIGNALROUTE
+   DESIGN MODERNE - Signaleo
    ======================================== */
 
 /* Variables CSS */
 :root {
-  --primary: #667eea;
-  --primary-dark: #5a67d8;
+  --primary: #0f3460;
+  --primary-dark: #1a1a2e;
   --secondary: #764ba2;
   --accent: #f093fb;
   --success: #48bb78;
@@ -1914,7 +1922,7 @@ ion-content {
    HEADER MODERNE
    ======================================== */
 .modern-header ion-toolbar {
-  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   --color: white;
   padding: 8px 0;
 }
@@ -2033,7 +2041,7 @@ ion-content {
 }
 
 .mini-stat.progress .stat-number {
-  color: #667eea;
+  color: #0f3460;
 }
 
 /* ========================================
@@ -2062,7 +2070,7 @@ ion-content {
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   cursor: pointer;
   color: white;
 }
@@ -2119,13 +2127,13 @@ ion-content {
 }
 
 .my-issues-toggle.active {
-  background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
-  border: 1px solid #667eea40;
+  background: linear-gradient(135deg, #1a1a2e20 0%, #0f346020 100%);
+  border: 1px solid #0f346040;
 }
 
 .my-issues-toggle ion-icon {
   font-size: 18px;
-  color: #667eea;
+  color: #0f3460;
 }
 
 .my-issues-toggle span {
@@ -2145,7 +2153,7 @@ ion-content {
 }
 
 .my-issues-toggle.active .toggle-switch {
-  background: #667eea;
+  background: #0f3460;
 }
 
 .toggle-dot {
@@ -2285,19 +2293,19 @@ ion-content {
   height: 60px;
   border: none;
   border-radius: 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 25px rgba(15, 52, 96, 0.5);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .fab-button:hover {
   transform: scale(1.05);
-  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 12px 35px rgba(15, 52, 96, 0.6);
 }
 
 .fab-button.active {
@@ -2367,10 +2375,10 @@ ion-content {
   justify-content: center;
   gap: 10px;
   padding: 14px;
-  border: 2px dashed #667eea;
-  background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+  border: 2px dashed #0f3460;
+  background: linear-gradient(135deg, #1a1a2e10 0%, #0f346010 100%);
   border-radius: 14px;
-  color: #667eea;
+  color: #0f3460;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -2379,7 +2387,7 @@ ion-content {
 }
 
 .gps-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+  background: linear-gradient(135deg, #1a1a2e20 0%, #0f346020 100%);
   transform: translateY(-2px);
 }
 
@@ -2511,8 +2519,33 @@ ion-content {
 /* ========================================
    MODAL DE STATISTIQUES
    ======================================== */
+
+/* Fullscreen mode */
+.stats-modal {
+  --height: 85%;
+  --width: 100%;
+  --max-width: 500px;
+  --border-radius: 24px 24px 0 0;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-modal.stats-fullscreen {
+  --width: 100% !important;
+  --height: 100% !important;
+  --max-width: 100% !important;
+  --max-height: 100% !important;
+  --border-radius: 0 !important;
+}
+
+.stats-modal.stats-fullscreen::part(content) {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+}
+
 .stats-header ion-toolbar {
-  --background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   --color: white;
 }
 
@@ -2520,50 +2553,73 @@ ion-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 16px 20px;
 }
 
 .stats-header-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
-.stats-header-info ion-icon {
-  font-size: 28px;
+.stats-icon-badge {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.stats-icon-badge ion-icon {
+  font-size: 24px;
   color: white;
 }
 
 .stats-header-info h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: white;
+  letter-spacing: -0.3px;
 }
 
 .stats-header-info p {
-  margin: 2px 0 0 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
+.header-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expand-modal-btn,
 .close-modal-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
 }
 
+.expand-modal-btn:hover,
 .close-modal-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
 }
 
+.expand-modal-btn ion-icon,
 .close-modal-btn ion-icon {
   font-size: 20px;
   color: white;
@@ -2574,50 +2630,99 @@ ion-content {
   padding: 20px;
 }
 
+.stats-fullscreen .stats-content {
+  padding: 32px 48px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
 /* Hero Stats */
 .hero-stats {
   margin-bottom: 24px;
+}
+
+.stats-fullscreen .hero-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
 }
 
 .hero-stat-card {
   background: white;
   border-radius: 20px;
   padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.hero-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 }
 
 .hero-stat-card.main {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   color: white;
   margin-bottom: 12px;
 }
 
+.stats-fullscreen .hero-stat-card.main {
+  margin-bottom: 0;
+  grid-column: 1;
+  grid-row: span 2;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
 .hero-stat-icon {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.stats-fullscreen .hero-stat-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 24px;
 }
 
 .hero-stat-icon ion-icon {
-  font-size: 30px;
+  font-size: 32px;
+}
+
+.stats-fullscreen .hero-stat-icon ion-icon {
+  font-size: 40px;
 }
 
 .hero-stat-value {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 800;
   display: block;
+  letter-spacing: -1px;
+}
+
+.stats-fullscreen .hero-stat-value {
+  font-size: 52px;
 }
 
 .hero-stat-label {
   font-size: 14px;
   opacity: 0.9;
+}
+
+.stats-fullscreen .hero-stat-label {
+  font-size: 16px;
 }
 
 .hero-stat-row {
@@ -2626,25 +2731,45 @@ ion-content {
   gap: 12px;
 }
 
+.stats-fullscreen .hero-stat-row {
+  display: contents;
+}
+
 .hero-stat-card.small {
   text-align: center;
-  padding: 16px;
+  padding: 18px 16px;
+}
+
+.stats-fullscreen .hero-stat-card.small {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .small-stat-value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #2d3748;
   display: block;
 }
 
+.stats-fullscreen .small-stat-value {
+  font-size: 32px;
+}
+
 .hero-stat-card.small.accent .small-stat-value {
-  color: #667eea;
+  color: #0f3460;
 }
 
 .small-stat-label {
   font-size: 12px;
   color: #718096;
+  margin-top: 4px;
+}
+
+.stats-fullscreen .small-stat-label {
+  font-size: 14px;
 }
 
 /* Progress Card */
@@ -2652,11 +2777,23 @@ ion-content {
   background: white;
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
   display: flex;
   align-items: center;
   gap: 24px;
   margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.progress-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .progress-card {
+  padding: 32px;
+  gap: 32px;
 }
 
 .circular-progress {
@@ -2664,6 +2801,11 @@ ion-content {
   width: 100px;
   height: 100px;
   flex-shrink: 0;
+}
+
+.stats-fullscreen .circular-progress {
+  width: 130px;
+  height: 130px;
 }
 
 .circular-progress svg {
@@ -2681,7 +2823,7 @@ ion-content {
 .progress-fill {
   fill: none;
   stroke: url(#progressGradient);
-  stroke: #667eea;
+  stroke: #0f3460;
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dasharray 0.5s ease;
@@ -2696,16 +2838,25 @@ ion-content {
 }
 
 .progress-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: #2d3748;
   display: block;
+}
+
+.stats-fullscreen .progress-value {
+  font-size: 28px;
 }
 
 .progress-label {
   font-size: 10px;
   color: #718096;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-fullscreen .progress-label {
+  font-size: 12px;
 }
 
 .progress-details {
@@ -2715,44 +2866,60 @@ ion-content {
 .progress-detail-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 13px;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
   color: #4a5568;
 }
 
+.stats-fullscreen .progress-detail-item {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
 .detail-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 
+.stats-fullscreen .detail-dot {
+  width: 14px;
+  height: 14px;
+}
+
 .detail-dot.resolved {
-  background: #48bb78;
+  background: linear-gradient(135deg, #48bb78, #38a169);
 }
 
 .detail-dot.pending {
-  background: #ed8936;
+  background: linear-gradient(135deg, #ed8936, #dd6b20);
 }
 
 /* Section Headers */
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .section-header ion-icon {
-  font-size: 20px;
-  color: #667eea;
+  font-size: 22px;
+  color: #0f3460;
 }
 
 .section-header h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
   color: #2d3748;
+}
+
+.stats-fullscreen .section-header h3 {
+  font-size: 20px;
 }
 
 /* Type Stats Grid */
@@ -2763,46 +2930,75 @@ ion-content {
   margin-bottom: 24px;
 }
 
+.stats-fullscreen .type-stats-grid {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
 .type-stat-card {
   background: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-  border-left: 4px solid var(--type-color);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+  border-left: 5px solid var(--type-color);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-left: 5px solid var(--type-color);
+}
+
+.type-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .type-stat-card {
+  padding: 22px;
 }
 
 .type-stat-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .type-stat-emoji {
-  font-size: 24px;
+  font-size: 28px;
+}
+
+.stats-fullscreen .type-stat-emoji {
+  font-size: 32px;
 }
 
 .type-stat-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #2d3748;
+}
+
+.stats-fullscreen .type-stat-name {
+  font-size: 17px;
 }
 
 .type-stat-body {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .type-stat-count {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   color: var(--type-color);
 }
 
+.stats-fullscreen .type-stat-count {
+  font-size: 36px;
+}
+
 .type-stat-unit {
-  font-size: 11px;
+  font-size: 12px;
   color: #718096;
   margin-left: 4px;
 }
@@ -2815,9 +3011,9 @@ ion-content {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: #718096;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .detail-row span:last-child {
@@ -2828,29 +3024,29 @@ ion-content {
 .type-stat-progress {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .progress-track {
   flex: 1;
-  height: 6px;
+  height: 8px;
   background: #e2e8f0;
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-track .progress-fill {
   height: 100%;
   background: var(--type-color);
-  border-radius: 3px;
+  border-radius: 4px;
   transition: width 0.5s ease;
 }
 
 .type-stat-progress .progress-text {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #718096;
-  min-width: 60px;
+  min-width: 70px;
   text-align: right;
 }
 
@@ -2861,6 +3057,11 @@ ion-content {
   gap: 12px;
 }
 
+.stats-fullscreen .status-pills {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
 .status-pill {
   background: white;
   border-radius: 14px;
@@ -2869,6 +3070,17 @@ ion-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: all 0.3s ease;
+}
+
+.status-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stats-fullscreen .status-pill {
+  padding: 20px 24px;
+  border-radius: 16px;
 }
 
 .pill-content {
@@ -2881,9 +3093,17 @@ ion-content {
   font-weight: 700;
 }
 
+.stats-fullscreen .pill-count {
+  font-size: 32px;
+}
+
 .pill-label {
   font-size: 12px;
   color: #718096;
+}
+
+.stats-fullscreen .pill-label {
+  font-size: 14px;
 }
 
 .pill-percentage {
@@ -2891,6 +3111,12 @@ ion-content {
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 8px;
+}
+
+.stats-fullscreen .pill-percentage {
+  font-size: 16px;
+  padding: 6px 14px;
+  border-radius: 10px;
 }
 
 .status-pill.status-1 .pill-count { color: #ed8936; }
@@ -2995,7 +3221,7 @@ ion-content {
 
 .input-label ion-icon {
   font-size: 16px;
-  color: #667eea;
+  color: #0f3460;
 }
 
 .modern-input {
@@ -3011,9 +3237,9 @@ ion-content {
 }
 
 .modern-input:focus {
-  border-color: #667eea;
+  border-color: #0f3460;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(15, 52, 96, 0.1);
 }
 
 .modern-input::placeholder {
@@ -3035,9 +3261,9 @@ ion-content {
 }
 
 .modern-textarea:focus {
-  border-color: #667eea;
+  border-color: #0f3460;
   background: white;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 4px rgba(15, 52, 96, 0.1);
 }
 
 /* Severity Selector */
@@ -3084,7 +3310,7 @@ ion-content {
 
 /* Budget Card */
 .budget-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   border-radius: 20px;
   padding: 20px;
   color: white;

@@ -11,9 +11,9 @@
         <!-- Logo et titre -->
         <div class="login-header">
           <div class="app-logo">
-            <img src="@/image.png" alt="SignalRoute" />
+            <img src="@/image.png" alt="Signaleo" />
           </div>
-          <h1 class="app-name">SignalRoute</h1>
+          <h1 class="app-name">Signaleo</h1>
           <p class="app-tagline">Signalez les problèmes de voirie</p>
         </div>
         
@@ -83,8 +83,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 
 const router = useRouter();
-const email = ref('');
-const password = ref('');
+const email = ref('fandresimahery1@gmail.com');
+const password = ref('fandresimahery1@gmail.com');
 const loading = ref(false);
 const error = ref('');
 
@@ -130,7 +130,7 @@ const login = async () => {
 .circle-1 {
   width: 300px;
   height: 300px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #1a1a2e, #0f3460);
   top: -100px;
   right: -50px;
 }
@@ -138,7 +138,7 @@ const login = async () => {
 .circle-2 {
   width: 250px;
   height: 250px;
-  background: linear-gradient(135deg, #f093fb, #f5576c);
+  background: linear-gradient(135deg, #16213e, #1a1a2e);
   bottom: 100px;
   left: -80px;
 }
@@ -163,12 +163,12 @@ const login = async () => {
   width: 120px;
   height: 120px;
   margin: 0 auto 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   border-radius: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 15px 50px rgba(102, 126, 234, 0.5);
+  box-shadow: 0 15px 50px rgba(15, 52, 96, 0.5);
 }
 
 .app-logo img {
@@ -226,7 +226,7 @@ const login = async () => {
 
 .input-label ion-icon {
   font-size: 16px;
-  color: #667eea;
+  color: #0f3460;
 }
 
 .modern-input {
@@ -246,9 +246,9 @@ const login = async () => {
 }
 
 .modern-input:focus {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.1);
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+  border-color: #0f3460;
+  background: rgba(15, 52, 96, 0.1);
+  box-shadow: 0 0 0 4px rgba(15, 52, 96, 0.15);
 }
 
 /* Button */
@@ -256,7 +256,7 @@ const login = async () => {
   width: 100%;
   padding: 16px 24px;
   margin-top: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
   border: none;
   border-radius: 14px;
   font-size: 16px;
@@ -268,12 +268,12 @@ const login = async () => {
   justify-content: center;
   gap: 10px;
   transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 8px 25px rgba(15, 52, 96, 0.35);
 }
 
 .login-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.45);
+  box-shadow: 0 12px 35px rgba(15, 52, 96, 0.45);
 }
 
 .login-btn:active:not(:disabled) {
