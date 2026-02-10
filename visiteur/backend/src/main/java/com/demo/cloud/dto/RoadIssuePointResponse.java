@@ -15,5 +15,7 @@ public record RoadIssuePointResponse(
     String statusCode,
     String statusLabel,
     LocalDateTime reportedAt,
-    String companyName
+    String companyName,
+    Integer niveau,
+    String niveauLabel
 ) {}

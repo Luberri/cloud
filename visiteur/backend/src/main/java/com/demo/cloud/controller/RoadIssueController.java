@@ -1,5 +1,6 @@
 package com.demo.cloud.controller;
 
+import com.demo.cloud.dto.RoadIssuePointResponse;
 import com.demo.cloud.entity.RoadIssue;
 import com.demo.cloud.entity.RoadIssueStatusHistory;
 import com.demo.cloud.entity.IssueImage;
@@ -8,6 +9,7 @@ import com.demo.cloud.repository.RoadIssueStatusHistoryRepository;
 import com.demo.cloud.repository.IssueImageRepository;
 import com.demo.cloud.service.RoadIssueService;
 import com.demo.cloud.service.RoadIssueStatusHistoryService;
+import com.demo.cloud.service.RoadIssuesMapService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,7 @@ public class RoadIssueController {
     private final RoadIssueStatusHistoryService historyService;
     private final RoadIssueService roadIssueService;
     private final RoadIssueStatusHistoryRepository statusHistoryRepository;
+    private final RoadIssuesMapService roadIssuesMapService;
 
     @Autowired
     private IssueImageRepository issueImageRepository;
@@ -46,11 +49,13 @@ public class RoadIssueController {
             RoadIssueRepository roadIssueRepository,
             RoadIssueStatusHistoryService historyService,
             RoadIssueService roadIssueService,
-            RoadIssueStatusHistoryRepository statusHistoryRepository) {
+            RoadIssueStatusHistoryRepository statusHistoryRepository,
+            RoadIssuesMapService roadIssuesMapService) {
         this.roadIssueRepository = roadIssueRepository;
         this.historyService = historyService;
         this.roadIssueService = roadIssueService;
         this.statusHistoryRepository = statusHistoryRepository;
+        this.roadIssuesMapService = roadIssuesMapService;
     }
 
     @GetMapping("/issues")
@@ -61,22 +66,8 @@ public class RoadIssueController {
 
     @GetMapping("/map/issues")
     @Operation(summary = "Lister les signalements avec coordonnées pour la carte")
-    public List<Map<String, Object>> getIssuesForMap() {
-        return roadIssueRepository.findAll().stream()
-            .map(issue -> {
-                Map<String, Object> issueMap = new HashMap<>();
-                issueMap.put("id", issue.getId());
-                issueMap.put("title", issue.getTitle());
-                issueMap.put("description", issue.getDescription());
-                issueMap.put("surfaceM2", issue.getSurfaceM2());
-                issueMap.put("budget", issue.getBudget());
-                issueMap.put("statusId", issue.getStatusId());
-                issueMap.put("reportedAt", issue.getReportedAt());
-                issueMap.put("latitude", issue.getLatitude());
-                issueMap.put("longitude", issue.getLongitude());
-                return issueMap;
-            })
-            .collect(Collectors.toList());
+    public List<RoadIssuePointResponse> getIssuesForMap() {
+        return roadIssuesMapService.getAllRoadIssuePoints();
     }
 
     @PutMapping("/issues/{id}")
