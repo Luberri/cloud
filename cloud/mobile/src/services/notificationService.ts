@@ -22,6 +22,11 @@ class NotificationService {
       console.log('📱 Permission notifications:', permStatus.display);
 
       if (permStatus.display === 'granted') {
+        // Configurer le channel de notification pour Android (important !)
+        if (Capacitor.getPlatform() === 'android') {
+          await this.createNotificationChannel();
+        }
+        
         // Configurer le listener pour les notifications cliquées
         await this.setupNotificationListeners();
         this.isInitialized = true;
@@ -32,6 +37,26 @@ class NotificationService {
 
     } catch (error) {
       console.error('❌ Erreur initialisation notifications:', error);
+    }
+  }
+
+  // Créer un channel de notification pour Android 8+
+  private async createNotificationChannel(): Promise<void> {
+    try {
+      await LocalNotifications.createChannel({
+        id: 'status_updates',
+        name: 'Mises à jour de statut',
+        description: 'Notifications pour les changements de statut des signalements',
+        importance: 5, // Max importance pour afficher en heads-up
+        visibility: 1, // Public
+        vibration: true,
+        sound: 'default',
+        lights: true,
+        lightColor: '#2196F3'
+      });
+      console.log('✅ Channel de notification créé');
+    } catch (error) {
+      console.error('❌ Erreur création channel:', error);
     }
   }
 
@@ -48,8 +73,9 @@ class NotificationService {
       const data = action.notification.extra;
       
       if (data?.issueId) {
-        // Naviguer vers le signalement (à adapter selon votre routing)
         console.log('📍 Navigation vers signalement:', data.issueId);
+        // Naviguer vers le signalement
+        window.location.href = `/tabs/map?issueId=${data.issueId}`;
       }
     });
   }
@@ -189,7 +215,7 @@ class NotificationService {
     // Si le statut a changé, envoyer une notification
     if (previousStatus && previousStatus !== currentStatus && currentStatus) {
       console.log(`🔔 CHANGEMENT DÉTECTÉ !`);
-      await this.sendStatusChangeNotification(newData, previousStatus, currentStatus);
+      await this.sendStatusChangeNotification(newData, previousStatus, currentStatus, issueId);
     }
 
     // Mettre à jour le cache
@@ -203,7 +229,8 @@ class NotificationService {
   private async sendStatusChangeNotification(
     issueData: any,
     oldStatus: string,
-    newStatus: string
+    newStatus: string,
+    issueId: string
   ): Promise<void> {
     const statusLabels: Record<string, string> = {
       '1': 'Signalé',
@@ -226,32 +253,43 @@ class NotificationService {
     const emoji = statusEmoji[newStatus] || '📢';
 
     try {
+      // Générer un ID unique pour la notification
+      const notificationId = Math.floor(Math.random() * 2147483647);
+      
       await LocalNotifications.schedule({
         notifications: [
           {
-            id: Date.now(),
+            id: notificationId,
             title: `${emoji} Mise à jour de statut`,
-            body: `"${title}" est passé de "${oldLabel}" à "${newLabel}"`,
+            body: `"${title}" : ${oldLabel} → ${newLabel}`,
             largeBody: `Votre signalement "${title}" a changé de statut.\n\nAncien statut: ${oldLabel}\nNouveau statut: ${newLabel}`,
-            summaryText: 'Mise à jour signalement',
+            summaryText: 'Signalement mis à jour',
+            channelId: 'status_updates', // Utiliser le channel créé
             extra: {
-              issueId: issueData.id,
+              issueId: issueId,
               oldStatus: oldStatus,
               newStatus: newStatus
             },
-            schedule: { at: new Date(Date.now() + 100) }, // Immédiat
+            // Notification immédiate
+            schedule: { at: new Date(Date.now() + 500) },
             sound: 'default',
-            smallIcon: 'ic_stat_icon_config_sample',
+            // Utiliser l'icône par défaut de l'app
+            smallIcon: 'ic_launcher_foreground',
             largeIcon: 'ic_launcher',
-            actionTypeId: 'OPEN_ISSUE'
+            // Options pour Android
+            autoCancel: true,
+            ongoing: false
           }
         ]
       });
 
-      console.log('✅ Notification envoyée !');
+      console.log('✅ Notification système envoyée !');
+      console.log(`   ID: ${notificationId}`);
+      console.log(`   Titre: ${emoji} Mise à jour de statut`);
+      console.log(`   Corps: "${title}" : ${oldLabel} → ${newLabel}`);
 
       // Sauvegarder dans l'historique Firestore
-      await this.saveNotificationToHistory(issueData, oldLabel, newLabel);
+      await this.saveNotificationToHistory(issueData, oldLabel, newLabel, issueId);
 
     } catch (error) {
       console.error('❌ Erreur envoi notification:', error);
@@ -262,7 +300,8 @@ class NotificationService {
   private async saveNotificationToHistory(
     issueData: any,
     oldStatus: string,
-    newStatus: string
+    newStatus: string,
+    issueId: string
   ): Promise<void> {
     const currentUser = auth.currentUser;
     if (!currentUser) return;
@@ -270,7 +309,7 @@ class NotificationService {
     try {
       const notificationData = {
         userId: currentUser.uid,
-        issueId: issueData.id || '',
+        issueId: issueId,
         issueTitle: issueData.title || 'Sans titre',
         type: 'status_change',
         oldStatus: oldStatus,

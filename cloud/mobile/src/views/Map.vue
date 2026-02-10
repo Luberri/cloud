@@ -1583,19 +1583,38 @@ const testNotification = async () => {
     console.log('📱 Permission:', permStatus.display);
     
     if (permStatus.display === 'granted') {
+      // Créer le channel sur Android
+      if (Capacitor.getPlatform() === 'android') {
+        await LocalNotifications.createChannel({
+          id: 'test_channel',
+          name: 'Test Notifications',
+          description: 'Channel pour tester les notifications',
+          importance: 5,
+          vibration: true,
+          sound: 'default'
+        });
+      }
+      
+      const notifId = Math.floor(Math.random() * 2147483647);
+      
       await LocalNotifications.schedule({
         notifications: [
           {
-            id: Date.now(),
+            id: notifId,
             title: '🔔 Test Notification',
             body: 'Les notifications fonctionnent correctement !',
-            schedule: { at: new Date(Date.now() + 1000) }
+            largeBody: 'Ceci est un test de notification.\n\nSi vous voyez cette notification, le système fonctionne parfaitement.',
+            channelId: 'test_channel',
+            schedule: { at: new Date(Date.now() + 1000) },
+            sound: 'default',
+            smallIcon: 'ic_launcher_foreground',
+            autoCancel: true
           }
         ]
       });
-      successMessage.value = 'Notification de test envoyée !';
+      successMessage.value = 'Notification de test envoyée ! Regardez votre barre de notifications.';
     } else {
-      error.value = 'Permission de notification refusée';
+      error.value = 'Permission de notification refusée. Activez-la dans les paramètres.';
     }
   } catch (e: any) {
     console.error('Erreur test notification:', e);

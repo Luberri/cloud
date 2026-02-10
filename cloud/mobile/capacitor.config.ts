@@ -6,9 +6,9 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   plugins: {
     LocalNotifications: {
-      smallIcon: "ic_stat_icon_config_sample",
-      iconColor: "#488AFF",
-      sound: "beep.wav"
+      smallIcon: "ic_launcher_foreground",
+      iconColor: "#2196F3",
+      sound: "default"
     },
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
