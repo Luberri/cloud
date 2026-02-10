@@ -6,8 +6,10 @@ import com.demo.cloud.entity.IssueImage;
 import com.demo.cloud.repository.RoadIssueRepository;
 import com.demo.cloud.repository.RoadIssueStatusHistoryRepository;
 import com.demo.cloud.repository.IssueImageRepository;
+import com.demo.cloud.service.PrixForfaitaireService;
 import com.demo.cloud.service.RoadIssueService;
 import com.demo.cloud.service.RoadIssueStatusHistoryService;
+import java.math.BigDecimal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,7 @@ public class RoadIssueController {
     private final RoadIssueStatusHistoryService historyService;
     private final RoadIssueService roadIssueService;
     private final RoadIssueStatusHistoryRepository statusHistoryRepository;
+    private final PrixForfaitaireService prixForfaitaireService;
 
     @Autowired
     private IssueImageRepository issueImageRepository;
@@ -46,17 +49,30 @@ public class RoadIssueController {
             RoadIssueRepository roadIssueRepository,
             RoadIssueStatusHistoryService historyService,
             RoadIssueService roadIssueService,
-            RoadIssueStatusHistoryRepository statusHistoryRepository) {
+            RoadIssueStatusHistoryRepository statusHistoryRepository,
+            PrixForfaitaireService prixForfaitaireService) {
         this.roadIssueRepository = roadIssueRepository;
         this.historyService = historyService;
         this.roadIssueService = roadIssueService;
         this.statusHistoryRepository = statusHistoryRepository;
+        this.prixForfaitaireService = prixForfaitaireService;
+    }
+
+    private void calculerBudgets(List<RoadIssue> issues) {
+        BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
+        for (RoadIssue issue : issues) {
+            BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
+            int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
+            issue.setBudget(prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
+        }
     }
 
     @GetMapping("/issues")
     @Operation(summary = "Lister les signalements routiers")
     public List<RoadIssue> getAllIssues() {
-        return roadIssueRepository.findAll();
+        List<RoadIssue> issues = roadIssueRepository.findAll();
+        calculerBudgets(issues);
+        return issues;
     }
 
     @GetMapping("/map/issues")
@@ -69,7 +85,10 @@ public class RoadIssueController {
                 issueMap.put("title", issue.getTitle());
                 issueMap.put("description", issue.getDescription());
                 issueMap.put("surfaceM2", issue.getSurfaceM2());
-                issueMap.put("budget", issue.getBudget());
+                BigDecimal surface = issue.getSurfaceM2() != null ? issue.getSurfaceM2() : BigDecimal.ZERO;
+                int niveau = (issue.getNiveau() != null && issue.getNiveau() >= 1) ? issue.getNiveau() : 1;
+                BigDecimal prix = prixForfaitaireService.getPrixActuel().getPrix();
+                issueMap.put("budget", prix.multiply(BigDecimal.valueOf(niveau)).multiply(surface));
                 issueMap.put("statusId", issue.getStatusId());
                 issueMap.put("reportedAt", issue.getReportedAt());
                 issueMap.put("latitude", issue.getLatitude());
@@ -101,6 +120,7 @@ public class RoadIssueController {
         existing.setUpdatedAt(LocalDateTime.now());
 
         RoadIssue saved = roadIssueRepository.save(existing);
+        calculerBudgets(List.of(saved));
 
         if (statusChanged) {
             RoadIssueStatusHistory history = new RoadIssueStatusHistory();
